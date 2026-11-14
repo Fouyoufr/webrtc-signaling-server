@@ -131,29 +131,41 @@ function updateIndicator() {
 
     switch (sessionState) {
 
-        case SESSION_STATE.CONNECTED:
+    case SESSION_STATE.HOST_WAITING:
 
-            indicator.classList.add(
-                "sessionUp"
-            );
+        indicator.classList.add(
+            "sessionAvailable"
+        );
+        break;
 
-            break;
+    case SESSION_STATE.GUEST_JOINED:
 
-        case SESSION_STATE.PENDING:
+        indicator.classList.add(
+            "sessionRecognized"
+        );
+        break;
 
-            indicator.classList.add(
-                "sessionWaiting"
-            );
+    case SESSION_STATE.SESSION_FOUND:
 
-            break;
+        indicator.classList.add(
+            "sessionRecognized"
+        );
+        break;
 
-        default:
+    case SESSION_STATE.DIRECT_READY:
 
-            indicator.classList.add(
-                "noSession"
-            );
+        indicator.classList.add(
+            "sessionDirect"
+        );
+        break;
 
-    }
+    default:
+
+        indicator.classList.add(
+            "noSession"
+        );
+
+}
 
     indicator.title =
         `${serverState} / ${sessionState}`;
@@ -288,20 +300,6 @@ function connectWebSocket() {
 
             updateIndicator();
 
-            if (message.type === "guest-joined") {
-
-    sessionState =
-        SESSION_STATE.GUEST_JOINED;
-
-    updateIndicator();
-
-    log(
-        `Invité connecté : ${message.data.peerId}`
-    );
-
-    return;
-}
-
             if (message.type === "session-joined") {
 
     sessionState =
@@ -349,6 +347,20 @@ function connectWebSocket() {
                 JSON.parse(
                     event.data
                 );
+
+                        if (message.type === "guest-joined") {
+
+    sessionState =
+        SESSION_STATE.GUEST_JOINED;
+
+    updateIndicator();
+
+    log(
+        `Invité connecté : ${message.data.peerId}`
+    );
+
+    return;
+}
 
             if (
                 message.id &&

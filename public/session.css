@@ -32,10 +32,14 @@
     background-color: red;
 }
 
-#sessionIndicator.sessionWaiting {
+#sessionIndicator.sessionAvailable  {
     background-color: orange;
 }
 
-#sessionIndicator.sessionUp {
+#sessionIndicator.sessionRecognized {
+    background-color: yellow;
+}
+
+#sessionIndicator.sessionDirect  {
     background-color: green;
 }
