@@ -27,6 +27,14 @@ let sessionState = SESSION_STATE.NONE;
 let authenticated = false;
 
 /*
+ * Gestion des requêtes
+ */
+
+let requestId = 0;
+
+const pendingRequests = new Map();
+
+/*
  * Références DOM
  */
 
@@ -55,11 +63,19 @@ function updateIndicator() {
 
     indicator.className = "";
 
-    indicator.classList.add(
-        serverState === SERVER_STATE.UP
-            ? "serverUp"
-            : "serverDown"
-    );
+    switch (serverState) {
+
+        case SERVER_STATE.AUTHENTICATED:
+            indicator.classList.add("serverUp");
+            break;
+
+        case SERVER_STATE.AVAILABLE:
+            indicator.classList.add("serverAvailable");
+            break;
+
+        default:
+            indicator.classList.add("serverDown");
+    }
 
     switch (sessionState) {
 
@@ -73,7 +89,6 @@ function updateIndicator() {
 
         default:
             indicator.classList.add("noSession");
-
     }
 
     indicator.title =
@@ -82,9 +97,101 @@ function updateIndicator() {
 }
 
 /*
+ * Helpers
+ */
+
+function nextRequestId() {
+
+    requestId++;
+
+    return requestId.toString();
+
+}
+
+/*
+ * Authentification
+ */
+
+function authenticate() {
+
+    return new Promise((resolve, reject) => {
+
+        const apiKey =
+            document.getElementById("apiKey").value;
+
+        const id = nextRequestId();
+
+        pendingRequests.set(id, {
+
+            resolve: (message) => {
+
+                authenticated = true;
+
+                serverState =
+                    SERVER_STATE.AUTHENTICATED;
+
+                updateIndicator();
+
+                resolve(message);
+
+            },
+
+            reject
+
+        });
+
+        socket.send(JSON.stringify({
+
+            id,
+            type: "authenticate",
+            apiKey
+
+        }));
+
+    });
+
+}
+
+/*
+ * Fonction générique
+ */
+
+async function webSocketSend(message) {
+
+    if (!authenticated) {
+
+        await authenticate();
+
+    }
+
+    return new Promise((resolve, reject) => {
+
+        const id = nextRequestId();
+
+        message.id = id;
+
+        pendingRequests.set(
+            id,
+            {
+                resolve,
+                reject
+            }
+        );
+
+        socket.send(
+            JSON.stringify(message)
+        );
+
+    });
+
+}
+
+/*
  * Connexion WebSocket
  */
+
 let socket;
+
 function connectWebSocket() {
 
     const protocol =
@@ -92,14 +199,14 @@ function connectWebSocket() {
             ? "wss:"
             : "ws:";
 
-    socket =
-        new WebSocket(
-            `${protocol}//${location.host}`
-        );
+    socket = new WebSocket(
+        `${protocol}//${location.host}`
+    );
 
     socket.addEventListener("open", () => {
 
-        serverState = SERVER_STATE.AVAILABLE;
+        serverState =
+            SERVER_STATE.AVAILABLE;
 
         updateIndicator();
 
@@ -109,7 +216,10 @@ function connectWebSocket() {
 
     socket.addEventListener("close", () => {
 
-        serverState = SERVER_STATE.DOWN;
+        authenticated = false;
+
+        serverState =
+            SERVER_STATE.DOWN;
 
         updateIndicator();
 
@@ -126,64 +236,24 @@ function connectWebSocket() {
     socket.addEventListener("message", (event) => {
 
         const message =
-    JSON.parse(event.data);
+            JSON.parse(event.data);
 
-if (message.type === "authenticated") {
+        if (
+            message.id &&
+            pendingRequests.has(message.id)
+        ) {
 
-    authenticated = true;
+            const request =
+                pendingRequests.get(message.id);
 
-    serverState =
-        SERVER_STATE.AUTHENTICATED;
+            pendingRequests.delete(
+                message.id
+            );
 
-    updateIndicator();
+            request.resolve(message);
 
-    log("Authentification OK");
+            return;
 
-    return;
-}
+        }
 
-if (message.type === "authentication-failed") {
-
-    log("Authentification refusée");
-
-    return;
-}
-
-log(`Message : ${event.data}`);
-
-    });
-
-}
-
-function authenticate() {
-
-    const apiKey =
-        document.getElementById("apiKey").value;
-
-    socket.send(
-        JSON.stringify({
-            type: "authenticate",
-            apiKey
-        })
-    );
-}
-
-/*
- * Bouton de test
- */
-
-document
-    .getElementById("createSession")
-    .addEventListener("click", () => {
-
-        authenticate();
-
-    });
-
-/*
- * Initialisation
- */
-
-updateIndicator();
-
-connectWebSocket();
+        log(

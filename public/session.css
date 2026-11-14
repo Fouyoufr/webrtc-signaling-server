@@ -1,7 +1,7 @@
 #sessionIndicator {
 
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
 
     border-radius: 50%;
 
@@ -13,11 +13,15 @@
  */
 
 #sessionIndicator.serverUp {
-    border: 3px solid green;
+    border: 5px solid green;
+}
+
+#sessionIndicator.serverAvailable {
+    border: 5px solid orange;
 }
 
 #sessionIndicator.serverDown {
-    border: 3px solid red;
+    border: 5px solid red;
 }
 
 /*

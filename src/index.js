@@ -59,7 +59,9 @@ wss.on("connection", (ws) => {
 
     ws.isAuthenticated = false;
 
-    console.log("Client WebSocket connecté");
+    console.log(
+        "Client WebSocket connecté"
+    );
 
     ws.send(JSON.stringify({
         type: "connected"
@@ -67,31 +69,62 @@ wss.on("connection", (ws) => {
 
     ws.on("message", (message) => {
 
-        const request = JSON.parse(message);
+        const request =
+            JSON.parse(message);
 
-        if (request.type === "authenticate") {
+        if (
+            request.type === "authenticate"
+        ) {
 
-            if (request.apiKey === API_KEY) {
+            if (
+                request.apiKey === API_KEY
+            ) {
 
                 ws.isAuthenticated = true;
 
-                ws.send(JSON.stringify({
-                    type: "authenticated"
-                }));
-
-            } else {
-
-                ws.send(JSON.stringify({
-                    type: "authentication-failed"
-                }));
+                ws.send(
+                    JSON.stringify({
+                        id: request.id,
+                        type: "authenticated"
+                    })
+                );
 
             }
+            else {
+
+                ws.send(
+                    JSON.stringify({
+                        id: request.id,
+                        type: "authentication-failed"
+                    })
+                );
+
+            }
+
+            return;
         }
+
+        if (
+            request.type === "ping"
+        ) {
+
+            ws.send(
+                JSON.stringify({
+                    id: request.id,
+                    type: "pong"
+                })
+            );
+
+            return;
+        }
+
     });
 
     ws.on("close", () => {
 
-        console.log("Client WebSocket déconnecté");
+        console.log(
+            "Client WebSocket déconnecté"
+        );
 
     });
 
