@@ -15,107 +15,89 @@ if (!API_KEY) {
     console.error("API_KEY environment variable is missing");
 
     process.exit(1);
+
 }
-
-function checkApiKey(req, res, next) {
-
-    const authHeader = req.headers.authorization;
-
-    if (!authHeader) {
-
-        return res.status(401).json({
-            error: "Missing Authorization header"
-        });
-    }
-
-    const token = authHeader.replace("Bearer ", "");
-
-    if (token !== API_KEY) {
-
-        return res.status(403).json({
-            error: "Invalid API key"
-        });
-    }
-
-    next();
-}
-
-app.post("/api/session", checkApiKey, (req, res) => {
-
-    res.json({
-        status: "ok",
-        message: "Authenticated"
-    });
-
-});
 
 const server = createServer(app);
 
-const wss = new WebSocketServer({
-    server
-});
+const wss = new WebSocketServer({ server });
 
 wss.on("connection", (ws) => {
 
     ws.isAuthenticated = false;
+    ws.peerId = null;
 
-    console.log(
-        "Client WebSocket connecté"
-    );
+    console.log("Client WebSocket connecté");
 
     ws.send(JSON.stringify({
         type: "connected"
     }));
 
-    ws.on("message", (message) => {
+    ws.on("message", (rawMessage) => {
 
-        const request =
-            JSON.parse(message);
+        const request = JSON.parse(rawMessage);
 
-        if (
-            request.type === "authenticate"
-        ) {
+        /*
+         * Authentification
+         */
+
+        if (request.type === "authenticate") {
 
             if (
-                request.apiKey === API_KEY
+                request.data?.apiKey === API_KEY
             ) {
 
                 ws.isAuthenticated = true;
+                ws.peerId = request.peerId;
 
-                ws.send(
-                    JSON.stringify({
-                        id: request.id,
-                        type: "authenticated"
-                    })
-                );
+                ws.send(JSON.stringify({
+                    id: request.id,
+                    type: "authenticated"
+                }));
 
-            }
-            else {
+            } else {
 
-                ws.send(
-                    JSON.stringify({
-                        id: request.id,
-                        type: "authentication-failed"
-                    })
-                );
+                ws.send(JSON.stringify({
+                    id: request.id,
+                    type: "error",
+                    error: "Invalid API key"
+                }));
 
             }
 
             return;
         }
 
-        if (
-            request.type === "ping"
-        ) {
+        /*
+         * Tout le reste nécessite
+         * une authentification
+         */
 
-            ws.send(
-                JSON.stringify({
-                    id: request.id,
-                    type: "pong"
-                })
-            );
+        if (!ws.isAuthenticated) {
+
+            ws.send(JSON.stringify({
+                id: request.id,
+                type: "error",
+                error: "Not authenticated"
+            }));
 
             return;
+
+        }
+
+        /*
+         * Ping
+         */
+
+        if (request.type === "ping") {
+
+            ws.send(JSON.stringify({
+                id: request.id,
+                type: "pong"
+            }));
+
+            return;
+
         }
 
     });
@@ -123,7 +105,7 @@ wss.on("connection", (ws) => {
     ws.on("close", () => {
 
         console.log(
-            "Client WebSocket déconnecté"
+            `Client déconnecté : ${ws.peerId}`
         );
 
     });
@@ -132,6 +114,8 @@ wss.on("connection", (ws) => {
 
 server.listen(PORT, () => {
 
-    console.log(`Server listening on port ${PORT}`);
+    console.log(
+        `Server listening on port ${PORT}`
+    );
 
 });
