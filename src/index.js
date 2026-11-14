@@ -22,6 +22,17 @@ const server = createServer(app);
 
 const wss = new WebSocketServer({ server });
 
+const sessions = new Map();
+
+function createSessionId() {
+
+    return Math.random()
+        .toString(36)
+        .substring(2, 8)
+        .toUpperCase();
+
+}
+
 wss.on("connection", (ws) => {
 
     ws.isAuthenticated = false;
@@ -99,6 +110,39 @@ wss.on("connection", (ws) => {
             return;
 
         }
+
+        if (request.type === "create-session") {
+
+    const sessionId =
+        createSessionId();
+
+    sessions.set(
+        sessionId,
+        {
+            host: ws,
+            hostPeerId: ws.peerId,
+            guest: null,
+            createdAt: Date.now()
+        }
+    );
+
+    console.log(
+        `Session créée : ${sessionId} (${ws.peerId})`
+    );
+
+    ws.send(
+        JSON.stringify({
+            id: request.id,
+            type: "session-created",
+            data: {
+                sessionId
+            }
+        })
+    );
+
+    return;
+
+}
 
     });
 

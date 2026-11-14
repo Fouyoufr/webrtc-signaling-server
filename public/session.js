@@ -32,14 +32,14 @@ let authenticated = false;
  */
 
 let peerId =
-    localStorage.getItem("peerId");
+    localStorage.getItem("fouy.session.peerId");
 
 if (!peerId) {
 
     peerId = crypto.randomUUID();
 
     localStorage.setItem(
-        "peerId",
+        "fouy.session.peerId",
         peerId
     );
 
@@ -367,16 +367,12 @@ document
 
         try {
 
-            log(
-                "Tentative ping..."
-            );
-
             const response =
                 await webSocketSend({
 
                     target: "server",
 
-                    type: "ping",
+                    type: "create-session",
 
                     data: {}
 
@@ -384,11 +380,16 @@ document
 
             if (
                 response.type ===
-                "pong"
+                "session-created"
             ) {
 
+                sessionState =
+                    SESSION_STATE.PENDING;
+
+                updateIndicator();
+
                 log(
-                    "Pong reçu !"
+                    `Session créée : ${response.data.sessionId}`
                 );
 
             }
