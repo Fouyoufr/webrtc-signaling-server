@@ -57,6 +57,7 @@ const wss = new WebSocketServer({
 });
 
 wss.on("connection", (ws) => {
+    ws.isAuthenticated = false;
 
     console.log("Client WebSocket connecté");
 
@@ -71,6 +72,35 @@ wss.on("connection", (ws) => {
         console.log("Client WebSocket déconnecté");
 
     });
+
+});
+
+ws.on("message", (message) => {
+
+    const request = JSON.parse(message);
+
+    if (request.type === "authenticate") {
+
+        if (request.apiKey === API_KEY) {
+
+            ws.isAuthenticated = true;
+
+            ws.send(
+                JSON.stringify({
+                    type: "authenticated"
+                })
+            );
+
+        }
+        else {
+
+            ws.send(
+                JSON.stringify({
+                    type: "authentication-failed"
+                })
+            );
+        }
+    }
 
 });
 

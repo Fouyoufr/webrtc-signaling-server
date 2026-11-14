@@ -4,7 +4,8 @@
 
 const SERVER_STATE = {
     DOWN: "Déconnecté",
-    UP: "Connecté"
+    AVAILABLE: "Disponible",
+    AUTHENTICATED: "Authentifié"
 };
 
 /*
@@ -23,6 +24,7 @@ const SESSION_STATE = {
 
 let serverState = SERVER_STATE.DOWN;
 let sessionState = SESSION_STATE.NONE;
+let authenticated = false;
 
 /*
  * Références DOM
@@ -82,7 +84,7 @@ function updateIndicator() {
 /*
  * Connexion WebSocket
  */
-
+let socket;
 function connectWebSocket() {
 
     const protocol =
@@ -90,14 +92,14 @@ function connectWebSocket() {
             ? "wss:"
             : "ws:";
 
-    const socket =
+    socket =
         new WebSocket(
             `${protocol}//${location.host}`
         );
 
     socket.addEventListener("open", () => {
 
-        serverState = SERVER_STATE.UP;
+        serverState = SERVER_STATE.AVAILABLE;
 
         updateIndicator();
 
@@ -123,10 +125,47 @@ function connectWebSocket() {
 
     socket.addEventListener("message", (event) => {
 
-        log(`Message : ${event.data}`);
+        const message =
+    JSON.parse(event.data);
+
+if (message.type === "authenticated") {
+
+    authenticated = true;
+
+    serverState =
+        SERVER_STATE.AUTHENTICATED;
+
+    updateIndicator();
+
+    log("Authentification OK");
+
+    return;
+}
+
+if (message.type === "authentication-failed") {
+
+    log("Authentification refusée");
+
+    return;
+}
+
+log(`Message : ${event.data}`);
 
     });
 
+}
+
+function authenticate() {
+
+    const apiKey =
+        document.getElementById("apiKey").value;
+
+    socket.send(
+        JSON.stringify({
+            type: "authenticate",
+            apiKey
+        })
+    );
 }
 
 /*
@@ -137,7 +176,7 @@ document
     .getElementById("createSession")
     .addEventListener("click", () => {
 
-        log("Création de session demandée");
+        authenticate();
 
     });
 
