@@ -5,6 +5,7 @@ import { WebSocketServer } from "ws";
 const app = express();
 
 app.use(express.json());
+app.use(express.static("public"));
 
 const PORT = process.env.PORT || 3000;
 const API_KEY = process.env.API_KEY;
@@ -39,8 +40,6 @@ function checkApiKey(req, res, next) {
     next();
 }
 
-app.use(express.static("public"));
-
 app.post("/api/session", checkApiKey, (req, res) => {
 
     res.json({
@@ -57,50 +56,44 @@ const wss = new WebSocketServer({
 });
 
 wss.on("connection", (ws) => {
+
     ws.isAuthenticated = false;
 
     console.log("Client WebSocket connecté");
 
-    ws.send(
-        JSON.stringify({
-            type: "connected"
-        })
-    );
+    ws.send(JSON.stringify({
+        type: "connected"
+    }));
+
+    ws.on("message", (message) => {
+
+        const request = JSON.parse(message);
+
+        if (request.type === "authenticate") {
+
+            if (request.apiKey === API_KEY) {
+
+                ws.isAuthenticated = true;
+
+                ws.send(JSON.stringify({
+                    type: "authenticated"
+                }));
+
+            } else {
+
+                ws.send(JSON.stringify({
+                    type: "authentication-failed"
+                }));
+
+            }
+        }
+    });
 
     ws.on("close", () => {
 
         console.log("Client WebSocket déconnecté");
 
     });
-
-});
-
-ws.on("message", (message) => {
-
-    const request = JSON.parse(message);
-
-    if (request.type === "authenticate") {
-
-        if (request.apiKey === API_KEY) {
-
-            ws.isAuthenticated = true;
-
-            ws.send(
-                JSON.stringify({
-                    type: "authenticated"
-                })
-            );
-
-        }
-        else {
-
-            ws.send(
-                JSON.stringify({
-                    type: "authentication-failed"
-                })
-            );
-        }
-    }
 
 });
 
