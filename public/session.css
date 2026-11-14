@@ -1,0 +1,37 @@
+#sessionIndicator {
+
+    width: 20px;
+    height: 20px;
+
+    border-radius: 50%;
+
+    margin-bottom: 20px;
+}
+
+/*
+ * Etat serveur
+ */
+
+#sessionIndicator.serverUp {
+    border: 3px solid green;
+}
+
+#sessionIndicator.serverDown {
+    border: 3px solid red;
+}
+
+/*
+ * Etat session
+ */
+
+#sessionIndicator.noSession {
+    background-color: red;
+}
+
+#sessionIndicator.sessionWaiting {
+    background-color: orange;
+}
+
+#sessionIndicator.sessionUp {
+    background-color: green;
+}

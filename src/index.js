@@ -1,4 +1,6 @@
 import express from "express";
+import { createServer } from "http";
+import { WebSocketServer } from "ws";
 
 const app = express();
 
@@ -48,7 +50,31 @@ app.post("/api/session", checkApiKey, (req, res) => {
 
 });
 
-app.listen(PORT, () => {
+const server = createServer(app);
+
+const wss = new WebSocketServer({
+    server
+});
+
+wss.on("connection", (ws) => {
+
+    console.log("Client WebSocket connecté");
+
+    ws.send(
+        JSON.stringify({
+            type: "connected"
+        })
+    );
+
+    ws.on("close", () => {
+
+        console.log("Client WebSocket déconnecté");
+
+    });
+
+});
+
+server.listen(PORT, () => {
 
     console.log(`Server listening on port ${PORT}`);
 
