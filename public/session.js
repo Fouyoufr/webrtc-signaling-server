@@ -14,8 +14,10 @@ const SERVER_STATE = {
 
 const SESSION_STATE = {
     NONE: "Aucune session",
-    PENDING: "Session en attente",
-    CONNECTED: "Session connectée"
+    HOST_WAITING: "Session disponible",
+    GUEST_JOINED: "Invité en attente",
+    SESSION_FOUND: "Session reconnue",
+    DIRECT_READY: "Session directe disponible"
 };
 
 /*
@@ -286,6 +288,34 @@ function connectWebSocket() {
 
             updateIndicator();
 
+            if (message.type === "guest-joined") {
+
+    sessionState =
+        SESSION_STATE.GUEST_JOINED;
+
+    updateIndicator();
+
+    log(
+        `Invité connecté : ${message.data.peerId}`
+    );
+
+    return;
+}
+
+            if (message.type === "session-joined") {
+
+    sessionState =
+        SESSION_STATE.SESSION_FOUND;
+
+    updateIndicator();
+
+    log(
+        `Session reconnue : ${message.data.sessionId}`
+    );
+
+    return;
+}
+
             log(
                 `WebSocket connecté (${peerId})`
             );
@@ -379,18 +409,77 @@ document
                 });
 
             if (
+    response.type ===
+    "session-created"
+) {
+
+    sessionState =
+        SESSION_STATE.HOST_WAITING;
+
+    updateIndicator();
+
+    document.getElementById(
+        "sessionId"
+    ).value =
+        response.data.sessionId;
+
+    log(
+        `Session créée : ${response.data.sessionId}`
+    );
+
+}
+
+        }
+        catch (error) {
+
+            log(
+                `Erreur : ${error.message}`
+            );
+
+        }
+
+    }
+);
+
+document
+.getElementById(
+    "joinSession"
+)
+.addEventListener(
+    "click",
+    async () => {
+
+        try {
+
+            const sessionId =
+                document
+                    .getElementById(
+                        "sessionId"
+                    )
+                    .value;
+
+            const response =
+                await webSocketSend({
+
+                    target: "server",
+
+                    type: "join-session",
+
+                    data: {
+                        sessionId
+                    }
+
+                });
+
+            if (
                 response.type ===
-                "session-created"
+                "session-joined"
             ) {
 
                 sessionState =
-                    SESSION_STATE.PENDING;
+                    SESSION_STATE.SESSION_FOUND;
 
                 updateIndicator();
-
-                log(
-                    `Session créée : ${response.data.sessionId}`
-                );
 
             }
 

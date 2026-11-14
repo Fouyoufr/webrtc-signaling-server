@@ -144,7 +144,55 @@ wss.on("connection", (ws) => {
 
 }
 
-    });
+if (request.type === "join-session") {
+
+    const session =
+        sessions.get(
+            request.data.sessionId
+        );
+
+    if (!session) {
+
+        ws.send(
+            JSON.stringify({
+                id: request.id,
+                type: "error",
+                error: "Session not found"
+            })
+        );
+
+        return;
+
+    }
+
+    session.guest = ws;
+    session.guestPeerId = ws.peerId;
+
+    ws.send(
+        JSON.stringify({
+            id: request.id,
+            type: "session-joined",
+            data: {
+                sessionId:
+                    request.data.sessionId
+            }
+        })
+    );
+
+    session.host.send(
+        JSON.stringify({
+            type: "guest-joined",
+            data: {
+                peerId: ws.peerId
+            }
+        })
+    );
+
+    return;
+
+}
+    
+});
 
     ws.on("close", () => {
 
