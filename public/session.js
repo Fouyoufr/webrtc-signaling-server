@@ -257,3 +257,48 @@ function connectWebSocket() {
         }
 
         log(
+            `Message : ${event.data}`
+        );
+
+    });
+
+}
+
+/*
+ * Bouton de test
+ */
+
+document
+    .getElementById("createSession")
+    .addEventListener(
+        "click",
+        async () => {
+
+            log("Tentative ping...");
+
+            const response =
+                await webSocketSend({
+
+                    target: "server",
+                    type: "ping"
+
+                });
+
+            if (
+                response.type === "pong"
+            ) {
+
+                log("Pong reçu !");
+
+            }
+
+        }
+    );
+
+/*
+ * Initialisation
+ */
+
+updateIndicator();
+
+connectWebSocket();
