@@ -93,7 +93,7 @@ wss.on("connection", (ws) => {
         if (ws.peerId) {clients.delete(ws.peerId);}
         console.log(`Client déconnecté : ${ws.peerId}`);
         console.log(`Clients connectés : ${clients.size}`);});
+})
 
 server.listen(PORT, () => {
     console.log(`Server listening on port ${PORT}`);});
-})
