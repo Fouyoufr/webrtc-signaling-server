@@ -41,6 +41,11 @@ function createSessionIndicator() {
 async function createPeerConnection() {
     if (peerConnection) {return;}
     peerConnection = new RTCPeerConnection();
+    peerConnection.onicecandidate =
+    async (event) => {
+        if (!event.candidate) {return;}
+        await webSocketSend({target: "server", type: "ice-candidate", data: { candidate: event.candidate}});
+        log("ICE envoyé");};
     log("RTCPeerConnection créée");
     if (isHost) {await createOffer();}}
 
@@ -166,6 +171,10 @@ function connectWebSocket() {
             if (message.type === "answer") {
                 log("Answer reçue");
                 await peerConnection.setRemoteDescription(new RTCSessionDescription(message.data.answer));
+                return;}
+            if (message.type === "ice-candidate") {
+                await peerConnection.addIceCandidate(new RTCIceCandidate(message.data.candidate));
+                log("ICE reçu");
                 return;}
             if (message.type === "heartbeat-ok") {return;}
             if (message.id && pendingRequests.has(message.id)) {

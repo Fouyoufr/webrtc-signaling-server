@@ -31,4 +31,3 @@ jobs:
           push: true
           tags: |
             fouyou/webrtc-signaling-server:latest
-            fouyou/webrtc-signaling-server:build-${{ github.run_number }}

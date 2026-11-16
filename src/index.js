@@ -88,6 +88,17 @@ wss.on("connection", (ws) => {
             ws.send(JSON.stringify({id: request.id, type: "offer-sent"}));
             return;}
 
+        if (request.type === "ice-candidate") {
+            let targetSession = null;
+            for (const session of sessions.values()) {
+                if (session.host === ws || session.guest === ws) {
+                    targetSession = session;
+                    break;}}
+            const destination = targetSession.host === ws ? targetSession.guest : targetSession.host;
+            destination.send(JSON.stringify({type: "ice-candidate", data: {candidate: request.data.candidate}}));
+            return;}
+
+
         /* Réponse à l'offre */
         if (request.type === "answer") {
             let targetSession = null;
