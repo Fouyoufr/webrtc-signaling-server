@@ -41,6 +41,7 @@ function createSessionIndicator() {
 async function createPeerConnection() {
     if (peerConnection) {return;}
     peerConnection = new RTCPeerConnection();
+    peerConnection.createDataChannel("fouy");
     peerConnection.onicecandidate =
     async (event) => {
         if (!event.candidate) {return;}
