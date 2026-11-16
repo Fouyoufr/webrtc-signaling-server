@@ -41,7 +41,7 @@ function createSessionIndicator() {
 
 async function createPeerConnection() {
     if (peerConnection) {return;}
-    peerConnection = new RTCPeerConnection();
+    peerConnection = new RTCPeerConnection({iceServers: [{urls:"stun:stun.l.google.com:19302"}]});
     peerConnection.ondatachannel = (event) => {
         dataChannel = event.channel;
         configureDataChannel();};
@@ -157,6 +157,9 @@ function connectWebSocket() {
         authenticated = false;
         serverState = SERVER_STATE.DOWN;
         updateIndicator();
+        if (heartbeatTimer) {
+            clearInterval(heartbeatTimer);
+            heartbeatTimer = null;}
         log("WebSocket déconnecté");});
         socket.addEventListener(
         "message", async (event) => {
