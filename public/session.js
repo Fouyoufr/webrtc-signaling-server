@@ -136,9 +136,8 @@ function connectWebSocket() {
         serverState = SERVER_STATE.DOWN;
         updateIndicator();
         log("WebSocket déconnecté");});
-
         socket.addEventListener(
-        "message", (event) => {
+        "message", async (event) => {
             const message = JSON.parse(event.data);
             if (message.type === "connected") {
                 heartbeatInterval = message.data.heartbeatInterval;
@@ -158,6 +157,7 @@ function connectWebSocket() {
                 return;}
             if (message.type === "offer") {
                 log("Offer reçue");
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(message.data.offer));
                 const answer = await peerConnection.createAnswer();
                 await peerConnection.setLocalDescription(answer);
                 await webSocketSend({target: "server", type: "answer", data: {answer}});
@@ -165,7 +165,7 @@ function connectWebSocket() {
                 return;}
             if (message.type === "answer") {
                 log("Answer reçue");
-                console.log(message.data.answer);
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(message.data.answer));
                 return;}
             if (message.type === "heartbeat-ok") {return;}
             if (message.id && pendingRequests.has(message.id)) {
