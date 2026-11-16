@@ -18,7 +18,24 @@ let requestId = 0;
 const pendingRequests = new Map();
 /* Références DOM */
 const logs = document.getElementById("logs");
-const indicator = document.getElementById("sessionIndicator");
+let indicator;
+function createSessionIndicator() {
+    if (document.getElementById("sessionIndicator")) {return;}
+    const style = document.createElement("style");
+    style.id = "sessionIndicatorStyle";
+    style.textContent = `#sessionIndicator {position: fixed; top: 10px; right: 10px; width: 24px; height: 24px; border-radius: 50%; z-index: 9999;}
+#sessionIndicator.serverDown {border: 5px solid red;}
+#sessionIndicator.serverAvailable {border: 5px solid orange;}
+#sessionIndicator.serverUp {border: 5px solid green;}
+#sessionIndicator.noSession {background-color: red;}
+#sessionIndicator.sessionAvailable {background-color: orange;}
+#sessionIndicator.sessionRecognized {background-color: yellow;}
+#sessionIndicator.sessionDirect {background-color: green;}`;
+    document.head.appendChild(style);
+    const indicator = document.createElement("div");
+    indicator.id = "sessionIndicator";
+    document.body.appendChild(indicator);}
+
 /* Journalisation */
 function log(message) {
     const line = document.createElement("div");
@@ -152,5 +169,7 @@ document.getElementById("joinSession").addEventListener("click", async () => {
     catch (error) {log(`Erreur : ${error.message}`);}});
 
 /* Initialisation */
+createSessionIndicator();
+indicator = document.getElementById("sessionIndicator");
 updateIndicator();
 connectWebSocket();
