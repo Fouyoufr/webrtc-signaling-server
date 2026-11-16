@@ -8,6 +8,7 @@ let authenticated = false;
 let heartbeatInterval = null;
 let heartbeatTimer = null;
 let peerConnection = null;
+let isHost = false;
 
 /* Peer Id persistant */
 let peerId = localStorage.getItem("fouy.session.peerId");
@@ -37,10 +38,11 @@ function createSessionIndicator() {
     indicator.id = "sessionIndicator";
     document.body.appendChild(indicator);}
 
-function createPeerConnection() {
+async function createPeerConnection() {
     if (peerConnection) {return;}
     peerConnection = new RTCPeerConnection();
-    log("RTCPeerConnection créée");}
+    log("RTCPeerConnection créée");
+    if (isHost) {await createOffer();}}
 
 /* Journalisation */
 function log(message) {
@@ -99,6 +101,12 @@ async function authenticate() {
         return true;}
     throw new Error(response.error || "Authentication failed");}
 
+async function createOffer() {
+    const offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+    await webSocketSend({target: "server", type: "offer", data: {offer}});
+    log("Offer envoyée");}
+
 /* Envoi brut */
 function sendRawMessage(message) {
     return new Promise((resolve, reject) => {
@@ -138,15 +146,21 @@ function connectWebSocket() {
                 return;}
             if (message.type === "guest-joined") {
                 sessionState = SESSION_STATE.GUEST_JOINED;
+                log(`Invité connecté : ${message.data.peerId}`);
                 updateIndicator();
                 createPeerConnection();
-                log(`Invité connecté : ${message.data.peerId}`);
                 return;}
             if (message.type === "session-joined") {
-            sessionState = SESSION_STATE.SESSION_FOUND;
-            updateIndicator();
-            log(`Session reconnue : ${message.data.sessionId}`);
-            return;}
+                sessionState = SESSION_STATE.SESSION_FOUND;
+                log(`Session reconnue : ${message.data.sessionId}`);
+                updateIndicator();
+                createPeerConnection();
+                return;}
+            if (message.type === "offer") {
+                log("Offer reçue");
+                console.log(message.data.offer);
+                return;}
+
             if (message.type === "heartbeat-ok") {return;}
             if (message.id && pendingRequests.has(message.id)) {
                 const request = pendingRequests.get(message.id);
@@ -161,6 +175,7 @@ document.getElementById("createSession").addEventListener("click", async () => {
         const response = await webSocketSend({target: "server", type: "create-session", data: {}});
         if (response.type === "session-created") {
             sessionState = SESSION_STATE.HOST_WAITING;
+            isHost = true;
             updateIndicator();
             document.getElementById("sessionId").value = response.data.sessionId;
             log(`Session créée : ${response.data.sessionId}`);}}

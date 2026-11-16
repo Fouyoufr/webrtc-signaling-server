@@ -86,6 +86,20 @@ wss.on("connection", (ws) => {
             ws.send(JSON.stringify({id: request.id, type: "session-joined", data: {sessionId: request.data.sessionId}}));
             session.host.send(JSON.stringify({type: "guest-joined", data: {peerId: ws.peerId}}));
             return;}
+
+        /* réception offre */
+        if (request.type === "offer") {
+            let targetSession = null;
+            for (const session of sessions.values()) {
+                if (session.host === ws) {
+                    targetSession = session;
+                    break;}}
+            if (!targetSession || !targetSession.guest) {
+                ws.send(JSON.stringify({id: request.id, type: "error", error: "Guest not connected"}));
+                return;}
+            targetSession.guest.send(JSON.stringify({type: "offer", data: {offer: request.data.offer}}));
+            ws.send(JSON.stringify({id: request.id, type: "offer-sent"}));
+            return;}
     })
 
     /* Déconnexion d'un client */
