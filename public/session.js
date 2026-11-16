@@ -9,6 +9,7 @@ let heartbeatInterval = null;
 let heartbeatTimer = null;
 let peerConnection = null;
 let isHost = false;
+let dataChannel = null;
 
 /* Peer Id persistant */
 let peerId = localStorage.getItem("fouy.session.peerId");
@@ -41,8 +42,13 @@ function createSessionIndicator() {
 async function createPeerConnection() {
     if (peerConnection) {return;}
     peerConnection = new RTCPeerConnection();
-    peerConnection.createDataChannel("fouy");
-    peerConnection.onicecandidate = async (event) => {
+    peerConnection.ondatachannel = (event) => {
+        dataChannel = event.channel;
+        configureDataChannel();};
+    if (isHost) {
+        dataChannel = peerConnection.createDataChannel("fouy");
+        configureDataChannel();}
+     peerConnection.onicecandidate = async (event) => {
         if (!event.candidate) {return;}
         await webSocketSend({target: "server", type: "ice-candidate", data: { candidate: event.candidate}});
         log("ICE envoyé");};
@@ -53,6 +59,12 @@ async function createPeerConnection() {
             updateIndicator();}};
     log("RTCPeerConnection créée");
     if (isHost) {await createOffer();}}
+
+function configureDataChannel() {
+    if (!dataChannel) {return;}
+    dataChannel.onopen = () => {log("DataChannel ouvert");};
+    dataChannel.onmessage = (event) => {log(`Message reçu : ${event.data}`);};
+    dataChannel.onclose = () => {log("DataChannel fermé");};}    
 
 /* Journalisation */
 function log(message) {
