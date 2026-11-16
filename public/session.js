@@ -1,516 +1,156 @@
-/*
- * Etats serveur
- */
-
-const SERVER_STATE = {
-    DOWN: "Déconnecté",
-    AVAILABLE: "Disponible",
-    AUTHENTICATED: "Authentifié"
-};
-
-/*
- * Etats session
- */
-
-const SESSION_STATE = {
-    NONE: "Aucune session",
-    HOST_WAITING: "Session disponible",
-    GUEST_JOINED: "Invité en attente",
-    SESSION_FOUND: "Session reconnue",
-    DIRECT_READY: "Session directe disponible"
-};
-
-/*
- * Etat courant
- */
-
+/* Etats serveur et session */
+const SERVER_STATE = {DOWN: "Déconnecté", AVAILABLE: "Disponible", AUTHENTICATED: "Authentifié"};
+const SESSION_STATE = {NONE: "Aucune session", HOST_WAITING: "Session disponible", GUEST_JOINED: "Invité en attente", SESSION_FOUND: "Session reconnue", DIRECT_READY: "Session directe disponible"};
+/* Etat courant */
 let serverState = SERVER_STATE.DOWN;
 let sessionState = SESSION_STATE.NONE;
-
 let authenticated = false;
+let heartbeatInterval = null;
+let heartbeatTimer = null;
 
-/*
- * Peer Id persistant
- */
-
-let peerId =
-    localStorage.getItem("fouy.session.peerId");
-
+/* Peer Id persistant */
+let peerId = localStorage.getItem("fouy.session.peerId");
 if (!peerId) {
-
     peerId = crypto.randomUUID();
-
-    localStorage.setItem(
-        "fouy.session.peerId",
-        peerId
-    );
-
-}
-
-/*
- * Gestion des requêtes
- */
-
+    localStorage.setItem("fouy.session.peerId", peerId);}
+/* Gestion des requêtes */
 let requestId = 0;
-
-const pendingRequests =
-    new Map();
-
-/*
- * Références DOM
- */
-
-const logs =
-    document.getElementById("logs");
-
-const indicator =
-    document.getElementById(
-        "sessionIndicator"
-    );
-
-/*
- * Journalisation
- */
-
+const pendingRequests = new Map();
+/* Références DOM */
+const logs = document.getElementById("logs");
+const indicator = document.getElementById("sessionIndicator");
+/* Journalisation */
 function log(message) {
-
-    const line =
-        document.createElement("div");
-
+    const line = document.createElement("div");
     line.textContent = message;
-
-    logs.appendChild(line);
-
-}
-
-/*
- * IDs
- */
-
+    logs.appendChild(line);}
+/* IDs */
 function nextRequestId() {
-
     requestId++;
+    return requestId.toString();}
+function startHeartbeat() {
+    if (heartbeatTimer) {
+        clearInterval(heartbeatTimer);}
+    heartbeatTimer = setInterval(async () => {
+        try {await webSocketSend({target: "server", type: "heartbeat", data: {}});}
+        catch (error) {log(`Heartbeat perdu : ${error.message}`);}}, heartbeatInterval * 1000);}
 
-    return requestId.toString();
-
-}
-
-/*
- * Puce
- */
-
+/* Puce */
 function updateIndicator() {
-
     indicator.className = "";
-
     switch (serverState) {
-
         case SERVER_STATE.AUTHENTICATED:
-
-            indicator.classList.add(
-                "serverUp"
-            );
-
+            indicator.classList.add("serverUp");
             break;
-
         case SERVER_STATE.AVAILABLE:
-
-            indicator.classList.add(
-                "serverAvailable"
-            );
-
+            indicator.classList.add("serverAvailable");
             break;
-
         default:
-
-            indicator.classList.add(
-                "serverDown"
-            );
-
-    }
-
+            indicator.classList.add("serverDown");}
     switch (sessionState) {
-
-    case SESSION_STATE.HOST_WAITING:
-
-        indicator.classList.add(
-            "sessionAvailable"
-        );
-        break;
-
-    case SESSION_STATE.GUEST_JOINED:
-
-        indicator.classList.add(
-            "sessionRecognized"
-        );
-        break;
-
-    case SESSION_STATE.SESSION_FOUND:
-
-        indicator.classList.add(
-            "sessionRecognized"
-        );
-        break;
-
+        case SESSION_STATE.HOST_WAITING:
+            indicator.classList.add("sessionAvailable");
+            break;
+        case SESSION_STATE.GUEST_JOINED:
+            indicator.classList.add("sessionRecognized");
+            break;
+        case SESSION_STATE.SESSION_FOUND:
+            indicator.classList.add("sessionRecognized");
+            break;
     case SESSION_STATE.DIRECT_READY:
-
-        indicator.classList.add(
-            "sessionDirect"
-        );
-        break;
-
+            indicator.classList.add("sessionDirect");
+            break;
     default:
+        indicator.classList.add("noSession");}
+    indicator.title = `${serverState} / ${sessionState}`;}
 
-        indicator.classList.add(
-            "noSession"
-        );
-
-}
-
-    indicator.title =
-        `${serverState} / ${sessionState}`;
-
-}
-
-/*
- * Authentification
- */
-
+/* Authentification */
 async function authenticate() {
-
-    const apiKey =
-        document.getElementById(
-            "apiKey"
-        ).value;
-
-    const response =
-        await sendRawMessage({
-
-            target: "server",
-
-            type: "authenticate",
-
-            data: {
-                apiKey
-            }
-
-        });
-
-    if (
-        response.type ===
-        "authenticated"
-    ) {
-
+    const apiKey = document.getElementById("apiKey").value;
+    const response = await sendRawMessage({target: "server", type: "authenticate", data: {apiKey}});
+    if (response.type === "authenticated") {
         authenticated = true;
-
-        serverState =
-            SERVER_STATE.AUTHENTICATED;
-
+        serverState = SERVER_STATE.AUTHENTICATED;
         updateIndicator();
-
         log("Authentification OK");
+        return true;}
+    throw new Error(response.error || "Authentication failed");}
 
-        return true;
-
-    }
-
-    throw new Error(
-        response.error ||
-        "Authentication failed"
-    );
-
-}
-
-/*
- * Envoi brut
- */
-
+/* Envoi brut */
 function sendRawMessage(message) {
+    return new Promise((resolve, reject) => {
+        const id = nextRequestId();
+        message.id = id;
+        message.peerId = peerId;
+        pendingRequests.set(id, {resolve, reject});
+        socket.send(JSON.stringify(message));});}
 
-    return new Promise(
-        (resolve, reject) => {
+/* API publique */
+async function webSocketSend(message) {
+    if (!authenticated) { await authenticate();}
+    return await sendRawMessage( message);}
 
-            const id =
-                nextRequestId();
-
-            message.id = id;
-            message.peerId = peerId;
-
-            pendingRequests.set(
-                id,
-                {
-                    resolve,
-                    reject
-                }
-            );
-
-            socket.send(
-                JSON.stringify(message)
-            );
-
-        }
-    );
-
-}
-
-/*
- * API publique
- */
-
-async function webSocketSend(
-    message
-) {
-
-    if (!authenticated) {
-
-        await authenticate();
-
-    }
-
-    return await sendRawMessage(
-        message
-    );
-
-}
-
-/*
- * WebSocket
- */
-
+/* WebSocket */
 let socket;
-
 function connectWebSocket() {
-
-    const protocol =
-        location.protocol ===
-        "https:"
-            ? "wss:"
-            : "ws:";
-
-    socket = new WebSocket(
-        `${protocol}//${location.host}`
-    );
-
-    socket.addEventListener(
-        "open",
-        () => {
-
-            serverState =
-                SERVER_STATE.AVAILABLE;
-
+    const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+    socket = new WebSocket(`${protocol}//${location.host}`);
+    socket.addEventListener("open",() => {
+        serverState = SERVER_STATE.AVAILABLE;
+        updateIndicator();
+        if (message.type === "session-joined") {
+            sessionState = SESSION_STATE.SESSION_FOUND;
             updateIndicator();
+            log(`Session reconnue : ${message.data.sessionId}`);
+            return;}
+        log(`WebSocket connecté (${peerId})`);});
 
-            if (message.type === "session-joined") {
+    socket.addEventListener("close",() => {
+        authenticated = false;
+        serverState = SERVER_STATE.DOWN;
+        updateIndicator();
+        log("WebSocket déconnecté");});
 
-    sessionState =
-        SESSION_STATE.SESSION_FOUND;
-
-    updateIndicator();
-
-    log(
-        `Session reconnue : ${message.data.sessionId}`
-    );
-
-    return;
-}
-
-            log(
-                `WebSocket connecté (${peerId})`
-            );
-
-        }
-    );
-
-    socket.addEventListener(
-        "close",
-        () => {
-
-            authenticated = false;
-
-            serverState =
-                SERVER_STATE.DOWN;
-
-            updateIndicator();
-
-            log(
-                "WebSocket déconnecté"
-            );
-
-        }
-    );
-
-    socket.addEventListener(
-        "message",
-        (event) => {
-
-            const message =
-                JSON.parse(
-                    event.data
-                );
-
-                        if (message.type === "guest-joined") {
-
-    sessionState =
-        SESSION_STATE.GUEST_JOINED;
-
-    updateIndicator();
-
-    log(
-        `Invité connecté : ${message.data.peerId}`
-    );
-
-    return;
-}
-
-            if (
-                message.id &&
-                pendingRequests.has(
-                    message.id
-                )
-            ) {
-
-                const request =
-                    pendingRequests.get(
-                        message.id
-                    );
-
-                pendingRequests.delete(
-                    message.id
-                );
-
-                request.resolve(
-                    message
-                );
-
-                return;
-
-            }
-
-            log(
-                `Message : ${event.data}`
-            );
-
-        }
-    );
-
-}
-
-/*
- * Bouton de test
- */
-
-document
-.getElementById(
-    "createSession"
-)
-.addEventListener(
-    "click",
-    async () => {
-
-        try {
-
-            const response =
-                await webSocketSend({
-
-                    target: "server",
-
-                    type: "create-session",
-
-                    data: {}
-
-                });
-
-            if (
-    response.type ===
-    "session-created"
-) {
-
-    sessionState =
-        SESSION_STATE.HOST_WAITING;
-
-    updateIndicator();
-
-    document.getElementById(
-        "sessionId"
-    ).value =
-        response.data.sessionId;
-
-    log(
-        `Session créée : ${response.data.sessionId}`
-    );
-
-}
-
-        }
-        catch (error) {
-
-            log(
-                `Erreur : ${error.message}`
-            );
-
-        }
-
-    }
-);
-
-document
-.getElementById(
-    "joinSession"
-)
-.addEventListener(
-    "click",
-    async () => {
-
-        try {
-
-            const sessionId =
-                document
-                    .getElementById(
-                        "sessionId"
-                    )
-                    .value;
-
-            const response =
-                await webSocketSend({
-
-                    target: "server",
-
-                    type: "join-session",
-
-                    data: {
-                        sessionId
-                    }
-
-                });
-
-            if (
-                response.type ===
-                "session-joined"
-            ) {
-
-                sessionState =
-                    SESSION_STATE.SESSION_FOUND;
-
+        socket.addEventListener(
+        "message", (event) => {
+            const message = JSON.parse(event.data);
+            if (message.type === "connected") {
+                heartbeatInterval = message.data.heartbeatInterval;
+                startHeartbeat();
+                return;}
+            if (message.type === "guest-joined") {
+                sessionState = SESSION_STATE.GUEST_JOINED;
                 updateIndicator();
+                log(`Invité connecté : ${message.data.peerId}`);
+                return;}
+            if (message.type === "heartbeat-ok") {return;}
+            if (message.id && pendingRequests.has(message.id)) {
+                const request = pendingRequests.get(message.id);
+                pendingRequests.delete(message.id);
+                request.resolve(message);
+                return;}
+            log(`Message : ${event.data}`);});}
 
-            }
+/* Boutons de test */
+document.getElementById("createSession").addEventListener("click", async () => {
+    try {
+        const response = await webSocketSend({target: "server", type: "create-session", data: {}});
+        if (response.type === "session-created") {
+            sessionState = SESSION_STATE.HOST_WAITING;
+            updateIndicator();
+            document.getElementById("sessionId").value = response.data.sessionId;
+            log(`Session créée : ${response.data.sessionId}`);}}
+    catch (error) {log(`Erreur : ${error.message}`);}});
 
-        }
-        catch (error) {
+document.getElementById("joinSession").addEventListener("click", async () => {
+    try {
+        const sessionId = document.getElementById("sessionId").value;
+        const response = await webSocketSend({target: "server", type: "join-session", data: {sessionId}});
+        if (response.type === "session-joined") {
+            sessionState = SESSION_STATE.SESSION_FOUND;
+            updateIndicator();}}
+    catch (error) {log(`Erreur : ${error.message}`);}});
 
-            log(
-                `Erreur : ${error.message}`
-            );
-
-        }
-
-    }
-);
-
-/*
- * Initialisation
- */
-
+/* Initialisation */
 updateIndicator();
-
 connectWebSocket();
