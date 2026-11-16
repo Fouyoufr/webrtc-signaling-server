@@ -13,27 +13,14 @@ const HEARTBEAT_INTERVAL = parseInt(process.env.HEARTBEAT_INTERVAL || "30", 10 )
 const clients = new Map();
 
 if (!API_KEY) {
-
     console.error("API_KEY environment variable is missing");
-
-    process.exit(1);
-
-}
+    process.exit(1);}
 
 const server = createServer(app);
-
 const wss = new WebSocketServer({ server });
-
 const sessions = new Map();
-
 function createSessionId() {
-
-    return Math.random()
-        .toString(36)
-        .substring(2, 8)
-        .toUpperCase();
-
-}
+    return Math.random().toString(36).substring(2, 8).toUpperCase();}
 
 wss.on("connection", (ws) => {
     ws.isAuthenticated = false;
@@ -99,6 +86,20 @@ wss.on("connection", (ws) => {
                 return;}
             targetSession.guest.send(JSON.stringify({type: "offer", data: {offer: request.data.offer}}));
             ws.send(JSON.stringify({id: request.id, type: "offer-sent"}));
+            return;}
+
+        /* Réponse à l'offre */
+        if (request.type === "answer") {
+            let targetSession = null;
+            for (const session of sessions.values()) {
+                if (session.guest === ws) {
+                    targetSession = session;
+                    break;}}
+            if (!targetSession) {
+                ws.send(JSON.stringify({id: request.id, type: "error", error: "Host not found"}));
+                return;}
+            targetSession.host.send(JSON.stringify({type: "answer", data: {answer: request.data.answer}}));
+            ws.send(JSON.stringify({id: request.id, type: "answer-sent"}));
             return;}
     })
 

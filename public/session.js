@@ -158,9 +158,15 @@ function connectWebSocket() {
                 return;}
             if (message.type === "offer") {
                 log("Offer reçue");
-                console.log(message.data.offer);
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                await webSocketSend({target: "server", type: "answer", data: {answer}});
+                log("Answer envoyée");
                 return;}
-
+            if (message.type === "answer") {
+                log("Answer reçue");
+                console.log(message.data.answer);
+                return;}
             if (message.type === "heartbeat-ok") {return;}
             if (message.id && pendingRequests.has(message.id)) {
                 const request = pendingRequests.get(message.id);
