@@ -54,9 +54,9 @@ async function createPeerConnection() {
         log("ICE envoyé");};
     peerConnection.onconnectionstatechange = () => {
         log(`Connection state : ${peerConnection.connectionState}`);
-        if (peerConnection.connectionState === "connected") {
-            sessionState = SESSION_STATE.DIRECT_READY
-            updateIndicator();}};
+        if (peerConnection.connectionState === "connected") {sessionState = SESSION_STATE.DIRECT_READY}
+        else {sessionState = SESSION_STATE.NONE}
+        updateIndicator();};
     log("RTCPeerConnection créée");
     if (isHost) {await createOffer();}}
 
