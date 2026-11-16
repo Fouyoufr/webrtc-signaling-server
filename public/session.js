@@ -46,8 +46,9 @@ async function createPeerConnection() {
         if (!event.candidate) {return;}
         await webSocketSend({target: "server", type: "ice-candidate", data: { candidate: event.candidate}});
         log("ICE envoyé");};
-    peerConnection.onconnectionstatechange = () => {log(`Connection state : ${peerConnection.connectionState}`);};
-    if (peerConnection.connectionState === "connected") {sessionState = SESSION_STATE.DIRECT_READY}
+    peerConnection.onconnectionstatechange = () => {
+        log(`Connection state : ${peerConnection.connectionState}`);
+        if (peerConnection.connectionState === "connected") {sessionState = SESSION_STATE.DIRECT_READY}};
     log("RTCPeerConnection créée");
     if (isHost) {await createOffer();}}
 
