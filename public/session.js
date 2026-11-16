@@ -48,7 +48,9 @@ async function createPeerConnection() {
         log("ICE envoyé");};
     peerConnection.onconnectionstatechange = () => {
         log(`Connection state : ${peerConnection.connectionState}`);
-        if (peerConnection.connectionState === "connected") {sessionState = SESSION_STATE.DIRECT_READY}};
+        if (peerConnection.connectionState === "connected") {
+            sessionState = SESSION_STATE.DIRECT_READY
+            updateIndicator();}};
     log("RTCPeerConnection créée");
     if (isHost) {await createOffer();}}
 
@@ -90,7 +92,7 @@ function updateIndicator() {
         case SESSION_STATE.SESSION_FOUND:
             indicator.classList.add("sessionRecognized");
             break;
-    case SESSION_STATE.DIRECT_READY:
+        case SESSION_STATE.DIRECT_READY:
             indicator.classList.add("sessionDirect");
             break;
     default:
