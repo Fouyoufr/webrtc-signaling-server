@@ -7,6 +7,7 @@ let sessionState = SESSION_STATE.NONE;
 let authenticated = false;
 let heartbeatInterval = null;
 let heartbeatTimer = null;
+let peerConnection = null;
 
 /* Peer Id persistant */
 let peerId = localStorage.getItem("fouy.session.peerId");
@@ -35,6 +36,11 @@ function createSessionIndicator() {
     const indicator = document.createElement("div");
     indicator.id = "sessionIndicator";
     document.body.appendChild(indicator);}
+
+function createPeerConnection() {
+    if (peerConnection) {return;}
+    peerConnection = new RTCPeerConnection();
+    log("RTCPeerConnection créée");}
 
 /* Journalisation */
 function log(message) {
@@ -118,6 +124,7 @@ function connectWebSocket() {
         if (message.type === "session-joined") {
             sessionState = SESSION_STATE.SESSION_FOUND;
             updateIndicator();
+            createPeerConnection();
             log(`Session reconnue : ${message.data.sessionId}`);
             return;}
         log(`WebSocket connecté (${peerId})`);});
@@ -138,6 +145,7 @@ function connectWebSocket() {
             if (message.type === "guest-joined") {
                 sessionState = SESSION_STATE.GUEST_JOINED;
                 updateIndicator();
+                createPeerConnection();
                 log(`Invité connecté : ${message.data.peerId}`);
                 return;}
             if (message.type === "heartbeat-ok") {return;}
