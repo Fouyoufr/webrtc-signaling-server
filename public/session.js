@@ -121,12 +121,6 @@ function connectWebSocket() {
     socket.addEventListener("open",() => {
         serverState = SERVER_STATE.AVAILABLE;
         updateIndicator();
-        if (message.type === "session-joined") {
-            sessionState = SESSION_STATE.SESSION_FOUND;
-            updateIndicator();
-            createPeerConnection();
-            log(`Session reconnue : ${message.data.sessionId}`);
-            return;}
         log(`WebSocket connecté (${peerId})`);});
 
     socket.addEventListener("close",() => {
@@ -148,6 +142,11 @@ function connectWebSocket() {
                 createPeerConnection();
                 log(`Invité connecté : ${message.data.peerId}`);
                 return;}
+            if (message.type === "session-joined") {
+            sessionState = SESSION_STATE.SESSION_FOUND;
+            updateIndicator();
+            log(`Session reconnue : ${message.data.sessionId}`);
+            return;}
             if (message.type === "heartbeat-ok") {return;}
             if (message.id && pendingRequests.has(message.id)) {
                 const request = pendingRequests.get(message.id);
