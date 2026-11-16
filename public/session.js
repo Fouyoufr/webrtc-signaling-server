@@ -32,7 +32,7 @@ function createSessionIndicator() {
 #sessionIndicator.noSession {background-color: red;}
 #sessionIndicator.sessionAvailable {background-color: orange;}
 #sessionIndicator.sessionRecognized {background-color: yellow;}
-#sessionIndicator.sessionDirect {background-color: green;}`;
+#sessionIndicator.sessionDirect {background-color: lightgreen;}`;
     document.head.appendChild(style);
     const indicator = document.createElement("div");
     indicator.id = "sessionIndicator";
