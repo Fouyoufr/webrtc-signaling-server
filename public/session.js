@@ -1,6 +1,10 @@
 /* Etats serveur et session */
 const SERVER_STATE = {DOWN: "Déconnecté", AVAILABLE: "Disponible", AUTHENTICATED: "Authentifié"};
 const SESSION_STATE = {NONE: "Aucune session", HOST_WAITING: "Session disponible", GUEST_JOINED: "Invité en attente", SESSION_FOUND: "Session reconnue", DIRECT_READY: "Session directe disponible"};
+const urlParams = new URLSearchParams(window.location.search);
+const joinSessionId = urlParams.get("FouySessionJoin");
+const SessionMode = {HOST: "host", GUEST: "guest"};
+const sessionMode = joinSessionId ? SessionMode.GUEST : SessionMode.HOST;
 /* Etat courant */
 let serverState = SERVER_STATE.DOWN;
 let sessionState = SESSION_STATE.NONE;
@@ -22,10 +26,14 @@ const pendingRequests = new Map();
 /* Références DOM */
 const logs = document.getElementById("logs");
 let indicator;
-function createSessionIndicator() {
+let sessionOverlay;
+let sessionPanel;
+let sessionurl;
+
+function createSessionUi() {
     if (document.getElementById("sessionIndicator")) {return;}
     const style = document.createElement("style");
-    style.id = "sessionIndicatorStyle";
+    style.id = "fouySessionStyle";
     style.textContent = `#sessionIndicator {position: fixed; top: 10px; right: 10px; width: 24px; height: 24px; border-radius: 50%; z-index: 9999;}
 #sessionIndicator.serverDown {border: 5px solid red;}
 #sessionIndicator.serverAvailable {border: 5px solid orange;}
@@ -33,11 +41,30 @@ function createSessionIndicator() {
 #sessionIndicator.noSession {background-color: red;}
 #sessionIndicator.sessionAvailable {background-color: orange;}
 #sessionIndicator.sessionRecognized {background-color: yellow;}
-#sessionIndicator.sessionDirect {background-color: lightgreen;}`;
+#sessionIndicator.sessionDirect {background-color: lightgreen;}
+#fouySessionOverlay {display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background:rgba(0,0,0,0.5); z-index: 9997;}
+#fouySessionPanel {display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 500px; max-width: 90%; padding: 20px; background: white; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.3); z-index: 9998; text-align: center;}
+#fouySessionPanel h2 {margin-top: 0;}
+#fouySessionJoinUrl {word-break: break-all; margin-top: 15px; font-family: monospace;}`;
     document.head.appendChild(style);
-    const indicator = document.createElement("div");
+    indicator = document.createElement("div");
     indicator.id = "sessionIndicator";
-    document.body.appendChild(indicator);}
+    document.body.appendChild(indicator);
+    sessionOverlay = document.createElement("div");
+    sessionOverlay.id = "fouySessionOverlay";
+    document.body.appendChild(sessionOverlay);
+    sessionPanel = document.createElement("div");
+    sessionPanel.id = "fouySessionPanel";
+    sessionPanel.innerHTML = `<h2>Session disponible</h2>`;
+    document.body.appendChild(sessionPanel);
+    sessionJoinUrl = document.createElement("div");
+    sessionJoinUrl.id = "fouySessionJoinUrl";
+    sessionPanel.appendChild(sessionJoinUrl);}
+
+function showSessionPanel(joinUrl) {
+    sessionOverlay.style.display = "block";
+    sessionPanel.style.display = "block";
+    sessionUrl.textContent = joinUrl;}
 
 async function createPeerConnection() {
     if (peerConnection) {return;}
@@ -212,6 +239,8 @@ document.getElementById("createSession").addEventListener("click", async () => {
             sessionState = SESSION_STATE.HOST_WAITING;
             isHost = true;
             updateIndicator();
+            const joinUrl = `${window.location.origin}` + `?FouySessionJoin=` + response.data.sessionId;
+            showSessionPanel(joinUrl);
             document.getElementById("sessionId").value = response.data.sessionId;
             log(`Session créée : ${response.data.sessionId}`);}}
     catch (error) {log(`Erreur : ${error.message}`);}});
@@ -226,7 +255,7 @@ document.getElementById("joinSession").addEventListener("click", async () => {
     catch (error) {log(`Erreur : ${error.message}`);}});
 
 /* Initialisation */
-createSessionIndicator();
+createSessionUi();
 indicator = document.getElementById("sessionIndicator");
 updateIndicator();
 connectWebSocket();
