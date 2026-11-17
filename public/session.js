@@ -5,8 +5,8 @@ const urlParams = new URLSearchParams(window.location.search);
 const joinSessionId = urlParams.get("FouySessionJoin");
 const SessionMode = {HOST: "host", GUEST: "guest"};
 const sessionMode = joinSessionId ? SessionMode.GUEST : SessionMode.HOST;
-const sessionScript =[...document.scripts].find(script => script.src.includes("session.js"));
-sessionBaseUrl = new URL(".", sessionScript.src).href;
+const sessionScript = [...document.scripts].find(script => script.src.includes("session.js"));
+const sessionBaseUrl = new URL(".", sessionScript.src).href;
 /* Etat courant */
 let serverState = SERVER_STATE.DOWN;
 let sessionState = SESSION_STATE.NONE;
@@ -33,7 +33,6 @@ let indicator;
 let sessionOverlay;
 let sessionPanel;
 let sessionurl;
-let sessionBaseUrl = null;
 
 async function loadScript(scriptName) {
     return new Promise((resolve, reject) => {
