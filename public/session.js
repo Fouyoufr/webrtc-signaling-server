@@ -78,8 +78,7 @@ function createSessionUi() {
     document.body.appendChild(sessionPanel);
     sessionJoinUrl = document.getElementById("fouySessionJoinUrl");
     sessionQrCode = document.getElementById("fouySessionQrCode");
-    sessionCopyButton = document.getElementById("fouyCopyButton");
-    sessionPanel.appendChild(sessionJoinUrl);}
+    sessionCopyButton = document.getElementById("fouyCopyButton");}
 
 async function showSessionPanel(joinUrl) {
     sessionOverlay.style.display = "block";
