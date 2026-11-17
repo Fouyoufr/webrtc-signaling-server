@@ -5,6 +5,8 @@ const urlParams = new URLSearchParams(window.location.search);
 const joinSessionId = urlParams.get("FouySessionJoin");
 const SessionMode = {HOST: "host", GUEST: "guest"};
 const sessionMode = joinSessionId ? SessionMode.GUEST : SessionMode.HOST;
+const sessionScript =[...document.scripts].find(script => script.src.includes("session.js"));
+sessionBaseUrl = new URL(".", sessionScript.src).href;
 /* Etat courant */
 let serverState = SERVER_STATE.DOWN;
 let sessionState = SESSION_STATE.NONE;
@@ -14,6 +16,8 @@ let heartbeatTimer = null;
 let peerConnection = null;
 let isHost = false;
 let dataChannel = null;
+let sessionQrCode;
+let sessionCopyButton;
 
 /* Peer Id persistant */
 let peerId = localStorage.getItem("fouy.session.peerId");
@@ -29,6 +33,15 @@ let indicator;
 let sessionOverlay;
 let sessionPanel;
 let sessionurl;
+let sessionBaseUrl = null;
+
+async function loadScript(scriptName) {
+    return new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = sessionBaseUrl + scriptName;
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);});}
 
 function createSessionUi() {
     if (document.getElementById("sessionIndicator")) {return;}
@@ -55,16 +68,24 @@ function createSessionUi() {
     document.body.appendChild(sessionOverlay);
     sessionPanel = document.createElement("div");
     sessionPanel.id = "fouySessionPanel";
-    sessionPanel.innerHTML = `<h2>Session disponible</h2>`;
+    sessionPanel.innerHTML = `<h2>Inviter un appareil</h2>
+<div id="fouySessionQrCode"></div>
+<button id="fouyCopyButton">Copier l'URL</button>`;
     document.body.appendChild(sessionPanel);
     sessionJoinUrl = document.createElement("div");
     sessionJoinUrl.id = "fouySessionJoinUrl";
+    sessionQrCode = document.getElementById("fouySessionQrCode");
+    sessionCopyButton = document.getElementById("fouyCopyButton");
     sessionPanel.appendChild(sessionJoinUrl);}
 
-function showSessionPanel(joinUrl) {
+async function showSessionPanel(joinUrl) {
     sessionOverlay.style.display = "block";
     sessionPanel.style.display = "block";
-    sessionJoinUrl.textContent = joinUrl;}
+    sessionJoinUrl.textContent = joinUrl;
+    await loadScript("qrcode.min.js");
+    sessionQrCode.innerHTML = "";
+    new QRCode(sessionQrCode, {text: joinUrl,width: 256, height: 256});
+    sessionCopyButton.onclick = async () => { await navigator.clipboard.writeText(joinUrl);};}
 
 async function joinSession(sessionId) {
     try {
@@ -249,7 +270,7 @@ document.getElementById("createSession").addEventListener("click", async () => {
             isHost = true;
             updateIndicator();
             const joinUrl = `${window.location.origin}` + `?FouySessionJoin=` + response.data.sessionId;
-            showSessionPanel(joinUrl);
+            await showSessionPanel(joinUrl);
             document.getElementById("sessionId").value = response.data.sessionId;
             log(`Session créée : ${response.data.sessionId}`);}}
     catch (error) {log(`Erreur : ${error.message}`);}});
