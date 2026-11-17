@@ -48,7 +48,8 @@ wss.on("connection", (ws) => {
                 ws.send(JSON.stringify({id: request.id, type: "error", error: "Session not found"}));
                 return;}
             session.guest = ws;
-            session.guestPeerId = ws.peerId;
+            session.guestPeerId = request.peerId;
+            ws.peerId = request.peerId;
             ws.send(JSON.stringify({id: request.id, type: "session-joined", data: {sessionId: request.data.sessionId}}));
             session.host.send(JSON.stringify({type: "guest-joined", data: {peerId: ws.peerId}}));
             return;}
