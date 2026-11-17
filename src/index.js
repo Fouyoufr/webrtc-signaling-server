@@ -29,6 +29,7 @@ wss.on("connection", (ws) => {
     ws.send(JSON.stringify({type: "connected", data: {heartbeatInterval: HEARTBEAT_INTERVAL}}));
     ws.on("message", (rawMessage) => {
         const request = JSON.parse(rawMessage);
+        console.log('DEBUG',request.type,ws.peerId,ws.isAuthenticated);
         /* Authentification */
         if (request.type === "authenticate") {
             if (request.data?.apiKey === API_KEY) {
@@ -51,6 +52,7 @@ wss.on("connection", (ws) => {
             session.guest = ws;
             session.guestPeerId = request.peerId;
             ws.peerId = request.peerId;
+            ws.isAuthenticated = true;
             ws.send(JSON.stringify({id: request.id, type: "session-joined", data: {sessionId: request.data.sessionId}}));
             session.host.send(JSON.stringify({type: "guest-joined", data: {peerId: ws.peerId}}));
             return;}
