@@ -66,6 +66,14 @@ function showSessionPanel(joinUrl) {
     sessionPanel.style.display = "block";
     sessionJoinUrl.textContent = joinUrl;}
 
+async function joinSession(sessionId) {
+    try {
+        const response = await webSocketSend({target: "server", type: "join-session", data: {sessionId}});
+        if (response.type === "session-joined") {
+            sessionState = SESSION_STATE.SESSION_FOUND;
+            updateIndicator();}}
+    catch (error) {log(`Erreur : ${error.message}`);}}
+
 async function createPeerConnection() {
     if (peerConnection) {return;}
     peerConnection = new RTCPeerConnection({iceServers: [{urls:"stun:stun.l.google.com:19302"}]});
@@ -175,10 +183,11 @@ let socket;
 function connectWebSocket() {
     const protocol = location.protocol === "https:" ? "wss:" : "ws:";
     socket = new WebSocket(`${protocol}//${location.host}`);
-    socket.addEventListener("open",() => {
+    socket.addEventListener("open",async () => {
         serverState = SERVER_STATE.AVAILABLE;
         updateIndicator();
-        log(`WebSocket connecté (${peerId})`);});
+        log(`WebSocket connecté (${peerId})`);
+        if (sessionMode === SessionMode.GUEST) {await joinSession(joinSessionId);}});
 
     socket.addEventListener("close",() => {
         authenticated = false;
@@ -246,13 +255,8 @@ document.getElementById("createSession").addEventListener("click", async () => {
     catch (error) {log(`Erreur : ${error.message}`);}});
 
 document.getElementById("joinSession").addEventListener("click", async () => {
-    try {
-        const sessionId = document.getElementById("sessionId").value;
-        const response = await webSocketSend({target: "server", type: "join-session", data: {sessionId}});
-        if (response.type === "session-joined") {
-            sessionState = SESSION_STATE.SESSION_FOUND;
-            updateIndicator();}}
-    catch (error) {log(`Erreur : ${error.message}`);}});
+        const sessionId =document.getElementById("sessionId").value;
+        await joinSession(sessionId);});
 
 /* Initialisation */
 createSessionUi();
