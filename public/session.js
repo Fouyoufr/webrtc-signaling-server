@@ -32,7 +32,6 @@ const logs = document.getElementById("logs");
 let indicator;
 let sessionOverlay;
 let sessionPanel;
-let sessionurl;
 
 async function loadScript(scriptName) {
     return new Promise((resolve, reject) => {
@@ -55,9 +54,13 @@ function createSessionUi() {
 #sessionIndicator.sessionRecognized {background-color: yellow;}
 #sessionIndicator.sessionDirect {background-color: lightgreen;}
 #fouySessionOverlay {display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background:rgba(0,0,0,0.5); z-index: 9997;}
-#fouySessionPanel {display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 500px; max-width: 90%; padding: 20px; background: white; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.3); z-index: 9998; text-align: center;}
+#fouySessionPanel {display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 500px; max-width: 90%; padding: 20px; background: white; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.3); z-index: 9998; text-align: center; display: flex; flex-direction: column; align-items: center;}
+#fouySessionQrCode {display: flex; justify-content: center; align-items: center;}
 #fouySessionPanel h2 {margin-top: 0;}
-#fouySessionJoinUrl {word-break: break-all; margin-top: 15px; font-family: monospace;}`;
+#fouySessionJoinUrl {word-break: break-all; margin-top: 15px; font-family: monospace;}
+#fouySessionShareRow {display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 15px;}
+#fouySessionJoinUrl {flex: 1; max-width: 400px; padding: 6px; text-align: center; font-family: monospace;}
+#fouyCopyButton {cursor: pointer; width: 36px; height: 36px;}`;
     document.head.appendChild(style);
     indicator = document.createElement("div");
     indicator.id = "sessionIndicator";
@@ -69,21 +72,23 @@ function createSessionUi() {
     sessionPanel.id = "fouySessionPanel";
     sessionPanel.innerHTML = `<h2>Inviter un appareil</h2>
 <div id="fouySessionQrCode"></div>
-<button id="fouyCopyButton">Copier l'URL</button>`;
+<div id="fouySessionShareRow">
+    <input id="fouySessionJoinUrl" readonly />
+    <button id="fouyCopyButton" title="Copier l'URL">📋</button>
+</div>`;
     document.body.appendChild(sessionPanel);
-    sessionJoinUrl = document.createElement("div");
-    sessionJoinUrl.id = "fouySessionJoinUrl";
+    sessionJoinUrl = document.getElementById("fouySessionJoinUrl");
     sessionQrCode = document.getElementById("fouySessionQrCode");
     sessionCopyButton = document.getElementById("fouyCopyButton");
     sessionPanel.appendChild(sessionJoinUrl);}
 
 async function showSessionPanel(joinUrl) {
     sessionOverlay.style.display = "block";
-    sessionPanel.style.display = "block";
+    sessionPanel.style.display = "flex";
     sessionJoinUrl.textContent = joinUrl;
     await loadScript("qrcode.min.js");
     sessionQrCode.innerHTML = "";
-    new QRCode(sessionQrCode, {text: joinUrl,width: 256, height: 256});
+    new QRCode(sessionQrCode, {text: joinUrl,width: 180, height: 180});
     sessionCopyButton.onclick = async () => { await navigator.clipboard.writeText(joinUrl);};}
 
 async function joinSession(sessionId) {
@@ -198,6 +203,11 @@ async function webSocketSend(message) {
     if (sessionMode === SessionMode.HOST && !authenticated) { await authenticate();}
     return await sendRawMessage( message);}
 
+/* Fermeture du QRCode */
+function hideSessionPanel() {
+    sessionOverlay.style.display = "none";
+    sessionPanel.style.display = "none";}
+
 /* WebSocket */
 let socket;
 function connectWebSocket() {
@@ -225,6 +235,7 @@ function connectWebSocket() {
                 startHeartbeat();
                 return;}
             if (message.type === "guest-joined") {
+                hideSessionPanel();
                 sessionState = SESSION_STATE.GUEST_JOINED;
                 log(`Invité connecté : ${message.data.peerId}`);
                 updateIndicator();
