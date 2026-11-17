@@ -175,7 +175,7 @@ function sendRawMessage(message) {
 
 /* API publique */
 async function webSocketSend(message) {
-    if (!authenticated) { await authenticate();}
+    if (sessionMode === SessionMode.HOST && !authenticated) { await authenticate();}
     return await sendRawMessage( message);}
 
 /* WebSocket */

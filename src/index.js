@@ -41,6 +41,18 @@ wss.on("connection", (ws) => {
             else {ws.send(JSON.stringify({id: request.id, type: "error", error: "Invalid API key"}));}
             return;}
 
+        /* Rejoindre une session */
+        if (request.type === "join-session") {
+            const session = sessions.get(request.data.sessionId);
+            if (!session) {
+                ws.send(JSON.stringify({id: request.id, type: "error", error: "Session not found"}));
+                return;}
+            session.guest = ws;
+            session.guestPeerId = ws.peerId;
+            ws.send(JSON.stringify({id: request.id, type: "session-joined", data: {sessionId: request.data.sessionId}}));
+            session.host.send(JSON.stringify({type: "guest-joined", data: {peerId: ws.peerId}}));
+            return;}
+
         /* Tout le reste nécessite une authentification */
         if (!ws.isAuthenticated) {
             ws.send(JSON.stringify({ id: request.id, type: "error", error: "Not authenticated"}));
@@ -60,18 +72,6 @@ wss.on("connection", (ws) => {
             sessions.set(sessionId, {host: ws, hostPeerId: ws.peerId, guest: null, createdAt: Date.now()});
             console.log(`Session créée : ${sessionId} (${ws.peerId})`);
             ws.send(JSON.stringify({id: request.id, type: "session-created", data: {sessionId}}));
-            return;}
-            
-        /* Rejoindre une session */
-        if (request.type === "join-session") {
-            const session = sessions.get(request.data.sessionId);
-            if (!session) {
-                ws.send(JSON.stringify({id: request.id, type: "error", error: "Session not found"}));
-                return;}
-            session.guest = ws;
-            session.guestPeerId = ws.peerId;
-            ws.send(JSON.stringify({id: request.id, type: "session-joined", data: {sessionId: request.data.sessionId}}));
-            session.host.send(JSON.stringify({type: "guest-joined", data: {peerId: ws.peerId}}));
             return;}
 
         /* réception offre */
