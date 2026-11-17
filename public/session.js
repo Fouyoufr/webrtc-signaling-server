@@ -64,7 +64,7 @@ function createSessionUi() {
 function showSessionPanel(joinUrl) {
     sessionOverlay.style.display = "block";
     sessionPanel.style.display = "block";
-    sessionUrl.textContent = joinUrl;}
+    sessionJoinUrl.textContent = joinUrl;}
 
 async function createPeerConnection() {
     if (peerConnection) {return;}
