@@ -34,6 +34,7 @@ wss.on("connection", (ws) => {
             if (request.data?.apiKey === API_KEY) {
                 ws.isAuthenticated = true;
                 ws.peerId = request.peerId;
+                ws.isAuthenticated = true;
                 clients.set( ws.peerId, ws);
                 console.log( `Authentifié : ${ws.peerId}`);
                 console.log( `Clients connectés : ${clients.size}`);
