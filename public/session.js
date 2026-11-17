@@ -283,12 +283,7 @@ document.getElementById("createSession").addEventListener("click", async () => {
             log(`Session créée : ${response.data.sessionId}`);}}
     catch (error) {log(`Erreur : ${error.message}`);}});
 
-document.getElementById("joinSession").addEventListener("click", async () => {
-        const sessionId =document.getElementById("sessionId").value;
-        await joinSession(sessionId);});
-
 /* Initialisation */
 createSessionUi();
-indicator = document.getElementById("sessionIndicator");
 updateIndicator();
 connectWebSocket();
