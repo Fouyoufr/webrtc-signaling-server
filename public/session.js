@@ -320,6 +320,7 @@ function connectWebSocket() {
                 return;}
             if (message.type === "session-joined") {
                 authenticated = true;
+                remotePeerName = message.data.peerName;
                 serverState = SERVER_STATE.AUTHENTICATED;
                 sessionState = SESSION_STATE.SESSION_FOUND;
                 log(`Session reconnue : ${message.data.sessionId}`);
