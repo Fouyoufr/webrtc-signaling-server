@@ -19,6 +19,7 @@ let heartbeatTimer = null;
 let peerConnection = null;
 let isHost = false;
 let dataChannel = null;
+let remotePeerName = null;
 let sessionQrCode;
 let sessionCopyButton;
 let sessionJoinUrl;
@@ -59,6 +60,8 @@ function showCurrentPanel() {
             break;
         case SESSION_STATE.DIRECT_READY:
             document.getElementById("fouySessionPanelTitle").textContent = "Connexion active";
+            document.getElementById("fouyConnectedPeerName").value = peerName;
+            document.getElementById("fouyConnectedPeer").textContent = remotePeerName;
             showPanelView("fouyConnectedSession");
             break;
         default:
@@ -134,6 +137,9 @@ function createSessionUi() {
 </div>
 <div id="fouyConnectedSession" class="fouySessionView">
     <div>✅ Connexion active</div>
+    <div>Nom de l'appareil</div>
+    <input id="fouyConnectedPeerName"/>
+    <div>Connecté à</div>
     <div id="fouyConnectedPeer"> Pair connecté</div>
 </div>`;
     document.body.appendChild(sessionPanel);
@@ -263,6 +269,7 @@ function sendRawMessage(message) {
         const id = nextRequestId();
         message.id = id;
         message.peerId = peerId;
+        message.peerName = peerName;
         pendingRequests.set(id, {resolve, reject});
         socket.send(JSON.stringify(message));});}
 
@@ -304,6 +311,7 @@ function connectWebSocket() {
                 startHeartbeat();
                 return;}
             if (message.type === "guest-joined") {
+                remotePeerName = message.data.peerName;
                 hideSessionPanel();
                 sessionState = SESSION_STATE.GUEST_JOINED;
                 log(`Invité connecté : ${message.data.peerId}`);

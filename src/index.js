@@ -35,6 +35,7 @@ wss.on("connection", (ws) => {
             if (request.data?.apiKey === API_KEY) {
                 ws.isAuthenticated = true;
                 ws.peerId = request.peerId;
+                ws.peerName = request.peerName;
                 ws.isAuthenticated = true;
                 clients.set( ws.peerId, ws);
                 console.log( `Authentifié : ${ws.peerId}`);
@@ -52,9 +53,10 @@ wss.on("connection", (ws) => {
             session.guest = ws;
             session.guestPeerId = request.peerId;
             ws.peerId = request.peerId;
+            ws.peerName = request.peerName;
             ws.isAuthenticated = true;
             ws.send(JSON.stringify({id: request.id, type: "session-joined", data: {sessionId: request.data.sessionId}}));
-            session.host.send(JSON.stringify({type: "guest-joined", data: {peerId: ws.peerId}}));
+            session.host.send(JSON.stringify({type: "guest-joined", data: {peerId: ws.peerId,peerName: ws.peerName}}));
             return;}
 
         /* Tout le reste nécessite une authentification */
@@ -73,7 +75,7 @@ wss.on("connection", (ws) => {
         /* Création de la session */
         if (request.type === "create-session") {
             const sessionId = createSessionId();
-            sessions.set(sessionId, {host: ws, hostPeerId: ws.peerId, guest: null, createdAt: Date.now()});
+            sessions.set(sessionId, {host: ws, hostPeerId: ws.peerId, hostpeerName: WebGLProgram.peerName, guest: null, guestPeerId: null, guestpeerName: null, createdAt: Date.now()});
             console.log(`Session créée : ${sessionId} (${ws.peerId})`);
             ws.send(JSON.stringify({id: request.id, type: "session-created", data: {sessionId}}));
             return;}
