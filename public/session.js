@@ -8,6 +8,8 @@ const sessionMode = joinSessionId ? SessionMode.GUEST : SessionMode.HOST;
 const sessionScript = [...document.scripts].find(script => script.src.includes("session.js"));
 const sessionBaseUrl = new URL(".", sessionScript.src).href;
 /* Etat courant */
+let peerName = localStorage.getItem("fouy.session.peerName");
+if (!peerName) {peerName = `Nouveau ${navigator.platform}`;}
 let serverState = SERVER_STATE.DOWN;
 let sessionState = SESSION_STATE.NONE;
 let authenticated = false;
@@ -41,6 +43,30 @@ async function loadScript(scriptName) {
         script.onerror = reject;
         document.head.appendChild(script);});}
 
+function showPanelView(viewId) {
+    document.querySelectorAll(".fouySessionView").forEach(view => view.style.display = "none");
+    document.getElementById(viewId).style.display = "flex";}
+
+function showMainPanel() {
+    sessionOverlay.style.display = "block";
+    sessionPanel.style.display = "flex";
+    showPanelView("fouySessionInformations");}
+
+async function createSession() {
+    peerName = document.getElementById("fouyPeerName").value;
+    localStorage.setItem("fouy.session.peerName", peerName);
+    const apiKey = document.getElementById("fouyApiKey").value;
+    localStorage.setItem("fouy.session.apiKey", apiKey);
+    try {
+        const response = await webSocketSend({target: "server", type: "create-session", data: {}});
+        if (response.type === "session-created") {
+            sessionState = SESSION_STATE.HOST_WAITING;
+            isHost = true;
+            updateIndicator();
+            const joinUrl = `${window.location.origin}` + `?FouySessionJoin=` + response.data.sessionId;
+            await showSessionPanel(joinUrl);}}
+    catch(error) {log(`Erreur : ${error.message}`);}}
+
 function createSessionUi() {
     if (document.getElementById("sessionIndicator")) {return;}
     const style = document.createElement("style");
@@ -55,6 +81,7 @@ function createSessionUi() {
 #sessionIndicator.sessionDirect {background-color: lightgreen;}
 #fouySessionOverlay {display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background:rgba(0,0,0,0.5); z-index: 9997;}
 #fouySessionPanel {display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 500px; max-width: 90%; padding: 20px; background: white; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.3); z-index: 9998; text-align: center; flex-direction: column; align-items: center;}
+.fouySessionView {display: none; flex-direction: column; align-items: center; gap: 10px;}
 #fouySessionQrCode {display: flex; justify-content: center; align-items: center;}
 #fouySessionPanel h2 {margin-top: 0;}
 #fouySessionJoinUrl {flex: 1; max-width: 400px; padding: 6px; text-align: center; font-family: monospace;}
@@ -62,27 +89,44 @@ function createSessionUi() {
 #fouySessionJoinUrl {flex: 1; max-width: 400px; padding: 6px; text-align: center; font-family: monospace;}
 #fouyCopyButton {cursor: pointer; width: 36px; height: 36px;}`;
     document.head.appendChild(style);
-    indicator = document.createElement("div");
+    indicator = document.createElement("button");
     indicator.id = "sessionIndicator";
+    indicator.addEventListener("click", showMainPanel);
     document.body.appendChild(indicator);
     sessionOverlay = document.createElement("div");
     sessionOverlay.id = "fouySessionOverlay";
     document.body.appendChild(sessionOverlay);
     sessionPanel = document.createElement("div");
     sessionPanel.id = "fouySessionPanel";
-    sessionPanel.innerHTML = `<h2>Inviter un appareil</h2>
-<div id="fouySessionQrCode"></div>
-<div id="fouySessionShareRow">
-    <input id="fouySessionJoinUrl" readonly /> <button id="fouyCopyButton" title="Copier l'URL">📋</button>
+    sessionPanel.innerHTML = `
+<h2 id="fouySessionPanelTitle">Session inter-navigateurs</h2>
+<div id="fouySessionInformations" class="fouySessionView">
+    <div>Nom de l'appareil</div>
+    <input id="fouyPeerName"/>
+    <div>Clef d'accès</div>
+    <input id="fouyApiKey" type="password"/>
+    <button id="fouyCreateSessionButton">Créer une session</button>
+</div>
+<div id="fouyCreateSession" class="fouySessionView">
+    <div id="fouySessionQrCode"></div>
+    <div id="fouySessionShareRow">
+        <input id="fouySessionJoinUrl" readonly/>
+        <button id="fouyCopyButton">📋</button>
+    </div>
 </div>`;
     document.body.appendChild(sessionPanel);
     sessionJoinUrl = document.getElementById("fouySessionJoinUrl");
     sessionQrCode = document.getElementById("fouySessionQrCode");
-    sessionCopyButton = document.getElementById("fouyCopyButton");}
+    sessionCopyButton = document.getElementById("fouyCopyButton");
+    showPanelView("fouySessionInformations");
+    document.getElementById("fouyPeerName").value = peerName;
+    document.getElementById("fouyApiKey").value = localStorage.getItem("fouy.session.apiKey") || "";}
 
 async function showSessionPanel(joinUrl) {
     sessionOverlay.style.display = "block";
     sessionPanel.style.display = "flex";
+    showPanelView("fouyCreateSession");
+    document.getElementById("fouySessionPanelTitle").textContent = "Inviter un appareil";
     sessionJoinUrl.value = joinUrl;
     await loadScript("qrcode.min.js");
     sessionQrCode.innerHTML = "";
@@ -171,7 +215,7 @@ function updateIndicator() {
 
 /* Authentification */
 async function authenticate() {
-    const apiKey = document.getElementById("apiKey").value;
+    const apiKey = localStorage.getItem("fouy.session.apiKey");
     const response = await sendRawMessage({target: "server", type: "authenticate", data: {apiKey}});
     if (response.type === "authenticated") {
         authenticated = true;
@@ -180,6 +224,17 @@ async function authenticate() {
         log("Authentification OK");
         return true;}
     throw new Error(response.error || "Authentication failed");}
+
+async function authenticate() {
+    const apiKey = localStorage.getItem("fouy.session.apiKey");
+    const response = await sendRawMessage({target: "server", type: "authenticate", data: {apiKey}});
+    if (response.type === "authenticated") {
+        authenticated = true;
+        serverState = SERVER_STATE.AUTHENTICATED;
+        updateIndicator();
+        return true;}
+    localStorage.removeItem("fouy.session.apiKey");
+    throw new Error(response.error || "Authentication failed");}    
 
 async function createOffer() {
     const offer = await peerConnection.createOffer();
@@ -240,6 +295,8 @@ function connectWebSocket() {
                 createPeerConnection();
                 return;}
             if (message.type === "session-joined") {
+                authenticated = true;
+                serverState = SERVER_STATE.AUTHENTICATED;
                 sessionState = SESSION_STATE.SESSION_FOUND;
                 log(`Session reconnue : ${message.data.sessionId}`);
                 updateIndicator();
@@ -279,7 +336,6 @@ document.getElementById("createSession").addEventListener("click", async () => {
             updateIndicator();
             const joinUrl = `${window.location.origin}` + `?FouySessionJoin=` + response.data.sessionId;
             await showSessionPanel(joinUrl);
-            document.getElementById("sessionId").value = response.data.sessionId;
             log(`Session créée : ${response.data.sessionId}`);}}
     catch (error) {log(`Erreur : ${error.message}`);}});
 
