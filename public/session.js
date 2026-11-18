@@ -49,13 +49,23 @@ function showPanelView(viewId) {
     document.querySelectorAll(".fouySessionView").forEach(view => view.style.display = "none");
     document.getElementById(viewId).style.display = "flex";}
 
-function showMainPanel() {
+function showCurrentPanel() {
     sessionOverlay.style.display = "block";
     sessionPanel.style.display = "flex";
-    document.getElementById("fouySessionPanelTitle").textContent = "Session inter-navigateurs";
-    document.getElementById("fouyPeerName").value = peerName;
-    document.getElementById("fouyApiKey").value = localStorage.getItem("fouy.session.apiKey") || "";
-    showPanelView("fouySessionInformations");}
+    switch (sessionState) {
+        case SESSION_STATE.HOST_WAITING:
+            document.getElementById("fouySessionPanelTitle").textContent = "Inviter un appareil";
+            showPanelView("fouyCreateSession");
+            break;
+        case SESSION_STATE.DIRECT_READY:
+            document.getElementById("fouySessionPanelTitle").textContent = "Connexion active";
+            showPanelView("fouyConnectedSession");
+            break;
+        default:
+            document.getElementById("fouySessionPanelTitle").textContent = "Session inter-navigateurs";
+            document.getElementById("fouyPeerName").value = peerName;
+            document.getElementById("fouyApiKey").value = localStorage.getItem("fouy.session.apiKey") || "";
+            showPanelView("fouySessionInformations");}}
 
 async function createSession() {
     peerName = document.getElementById("fouyPeerName").value;
@@ -98,7 +108,7 @@ function createSessionUi() {
     document.head.appendChild(style);
     indicator = document.createElement("button");
     indicator.id = "sessionIndicator";
-    indicator.addEventListener("click", showMainPanel);
+    indicator.addEventListener("click", showCurrentPanel);
     document.body.appendChild(indicator);
     sessionOverlay = document.createElement("div");
     sessionOverlay.id = "fouySessionOverlay";
@@ -121,6 +131,10 @@ function createSessionUi() {
         <input id="fouySessionJoinUrl" readonly/>
         <button id="fouyCopyButton">📋</button>
     </div>
+</div>
+<div id="fouyConnectedSession" class="fouySessionView">
+    <div>✅ Connexion active</div>
+    <div id="fouyConnectedPeer"> Pair connecté</div>
 </div>`;
     document.body.appendChild(sessionPanel);
     sessionJoinUrl = document.getElementById("fouySessionJoinUrl");
