@@ -90,6 +90,14 @@ async function createSession() {
             await showSessionPanel(joinUrl);}}
     catch(error) {log(`Erreur : ${error.message}`);}}
 
+function fouySessionToast(type, message) {
+    const toast = document.createElement("div");
+    toast.className = `fouySessionToast ${type}`;
+    toast.textContent = message;
+    toast.onclick = () => toast.remove();
+    toastContainer.appendChild(toast);
+    if (type !== "error") {setTimeout(() => toast.remove(), type === "warning" ? 5000 : 3000);}}    
+
 function createSessionUi() {
     if (document.getElementById("sessionIndicator")) {return;}
     const style = document.createElement("style");
@@ -112,7 +120,12 @@ function createSessionUi() {
 #fouySessionJoinUrl {flex: 1; max-width: 400px; padding: 6px; text-align: center; font-family: monospace;}
 #fouyCopyButton {cursor: pointer; width: 36px; height: 36px;}
 #fouySessionPanel input {border: 1px solid #999 !important; box-sizing: border-box; background: white;}
-#fouySessionClose {position: absolute; top: 10px; right: 10px; border: none; background: transparent; cursor: pointer; font-size: 18px;}`;
+#fouySessionClose {position: absolute; top: 10px; right: 10px; border: none; background: transparent; cursor: pointer; font-size: 18px;}
+#fouySessionToastContainer { position: fixed; top: 50px; right: 10px; z-index: 10000; display: flex; flex-direction: column; gap: 8px;}
+.fouySessionToast { padding: 10px; border-radius: 6px; color: white; cursor: pointer; min-width: 250px;}
+.fouySessionToast.info {background: #3b82f6;}
+.fouySessionToast.warning {background: #f59e0b;}
+.fouySessionToast.error {background: #ef4444;}`;
     document.head.appendChild(style);
     indicator = document.createElement("button");
     indicator.id = "sessionIndicator";
@@ -145,6 +158,9 @@ function createSessionUi() {
     <div>Connecté à</div>
     <div id="fouyConnectedPeer"> Pair connecté</div>
 </div>`;
+    toastContainer = document.createElement("div");
+    toastContainer.id = "fouySessionToastContainer";
+    document.body.appendChild(toastContainer);
     document.body.appendChild(sessionPanel);
     sessionJoinUrl = document.getElementById("fouySessionJoinUrl");
     sessionQrCode = document.getElementById("fouySessionQrCode");
