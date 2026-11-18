@@ -20,6 +20,7 @@ let isHost = false;
 let dataChannel = null;
 let sessionQrCode;
 let sessionCopyButton;
+let sessionJoinUrl;
 
 /* Peer Id persistant */
 let peerId = localStorage.getItem("fouy.session.peerId");
@@ -50,6 +51,9 @@ function showPanelView(viewId) {
 function showMainPanel() {
     sessionOverlay.style.display = "block";
     sessionPanel.style.display = "flex";
+    document.getElementById("fouySessionPanelTitle").textContent = "Session inter-navigateurs";
+    document.getElementById("fouyPeerName").value = peerName;
+    document.getElementById("fouyApiKey").value = localStorage.getItem("fouy.session.apiKey") || "";
     showPanelView("fouySessionInformations");}
 
 async function createSession() {
@@ -58,10 +62,10 @@ async function createSession() {
     const apiKey = document.getElementById("fouyApiKey").value;
     localStorage.setItem("fouy.session.apiKey", apiKey);
     try {
+        isHost = true;
         const response = await webSocketSend({target: "server", type: "create-session", data: {}});
         if (response.type === "session-created") {
             sessionState = SESSION_STATE.HOST_WAITING;
-            isHost = true;
             updateIndicator();
             const joinUrl = `${window.location.origin}` + `?FouySessionJoin=` + response.data.sessionId;
             await showSessionPanel(joinUrl);}}
@@ -80,7 +84,7 @@ function createSessionUi() {
 #sessionIndicator.sessionRecognized {background-color: yellow;}
 #sessionIndicator.sessionDirect {background-color: lightgreen;}
 #fouySessionOverlay {display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background:rgba(0,0,0,0.5); z-index: 9997;}
-#fouySessionPanel {display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 500px; max-width: 90%; padding: 20px; background: white; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.3); z-index: 9998; text-align: center; flex-direction: column; align-items: center;}
+#fouySessionPanel {display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 500px; max-width: 90%; padding: 20px; background: white; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.3); z-index: 9998; text-align: center; flex-direction: column; align-items: center; justify-content: center;}
 .fouySessionView {display: none; flex-direction: column; align-items: center; gap: 10px;}
 #fouySessionQrCode {display: flex; justify-content: center; align-items: center;}
 #fouySessionPanel h2 {margin-top: 0;}
@@ -120,7 +124,8 @@ function createSessionUi() {
     sessionCopyButton = document.getElementById("fouyCopyButton");
     showPanelView("fouySessionInformations");
     document.getElementById("fouyPeerName").value = peerName;
-    document.getElementById("fouyApiKey").value = localStorage.getItem("fouy.session.apiKey") || "";}
+    document.getElementById("fouyApiKey").value = localStorage.getItem("fouy.session.apiKey") || "";
+    document.getElementById("fouyCreateSessionButton").addEventListener("click", createSession);}
 
 async function showSessionPanel(joinUrl) {
     sessionOverlay.style.display = "block";
@@ -128,7 +133,7 @@ async function showSessionPanel(joinUrl) {
     showPanelView("fouyCreateSession");
     document.getElementById("fouySessionPanelTitle").textContent = "Inviter un appareil";
     sessionJoinUrl.value = joinUrl;
-    await loadScript("qrcode.min.js");
+    if (typeof QRCode === "undefined") {await loadScript("qrcode.min.js");}
     sessionQrCode.innerHTML = "";
     new QRCode(sessionQrCode, {text: joinUrl,width: 180, height: 180});
     sessionCopyButton.onclick = async () => { await navigator.clipboard.writeText(joinUrl);};}
@@ -221,17 +226,6 @@ async function authenticate() {
         authenticated = true;
         serverState = SERVER_STATE.AUTHENTICATED;
         updateIndicator();
-        log("Authentification OK");
-        return true;}
-    throw new Error(response.error || "Authentication failed");}
-
-async function authenticate() {
-    const apiKey = localStorage.getItem("fouy.session.apiKey");
-    const response = await sendRawMessage({target: "server", type: "authenticate", data: {apiKey}});
-    if (response.type === "authenticated") {
-        authenticated = true;
-        serverState = SERVER_STATE.AUTHENTICATED;
-        updateIndicator();
         return true;}
     localStorage.removeItem("fouy.session.apiKey");
     throw new Error(response.error || "Authentication failed");}    
@@ -258,6 +252,7 @@ async function webSocketSend(message) {
 
 /* Fermeture du QRCode */
 function hideSessionPanel() {
+    showPanelView("fouySessionInformations");
     sessionOverlay.style.display = "none";
     sessionPanel.style.display = "none";}
 
@@ -326,7 +321,7 @@ function connectWebSocket() {
                 return;}
             log(`Message : ${event.data}`);});}
 
-/* Boutons de test */
+/* Boutons de test 
 document.getElementById("createSession").addEventListener("click", async () => {
     try {
         const response = await webSocketSend({target: "server", type: "create-session", data: {}});
@@ -338,6 +333,7 @@ document.getElementById("createSession").addEventListener("click", async () => {
             await showSessionPanel(joinUrl);
             log(`Session créée : ${response.data.sessionId}`);}}
     catch (error) {log(`Erreur : ${error.message}`);}});
+*/
 
 /* Initialisation */
 createSessionUi();
