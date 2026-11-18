@@ -73,6 +73,18 @@ wss.on("connection", (ws) => {
             ws.send(JSON.stringify({id: request.id, type: "heartbeat-ok"}));
             return;}
 
+        /* Changement du nom affiché */
+        if (request.type === "update-peer-name") {
+            ws.peerName = request.data.peerName;
+            let targetSession = null;
+            for (const session of sessions.values()) {
+                if (session.host === ws || session.guest === ws) {
+                    targetSession = session;
+                    break;}}
+            if (targetSession.host === ws) {targetSession.hostPeerName = ws.peerName;} else {targetSession.guestPeerName = ws.peerName;}
+            const destination = targetSession.host === ws ? targetSession.guest : targetSession.host;
+            destination.send(JSON.stringify({type: "peer-name-updated", data: {peerName: ws.peerName}}));}
+
         /* Création de la session */
         if (request.type === "create-session") {
             const sessionId = createSessionId();

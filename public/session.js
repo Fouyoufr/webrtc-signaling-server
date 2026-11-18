@@ -46,6 +46,11 @@ async function loadScript(scriptName) {
         script.onerror = reject;
         document.head.appendChild(script);});}
 
+async function updatePeerName(newPeerName) {
+    peerName = newPeerName;
+    localStorage.setItem("fouy.session.peerName", peerName);
+    if (authenticated) {await webSocketSend({target: "server", type: "update-peer-name", data: {peerName}});}}        
+
 function showPanelView(viewId) {
     document.querySelectorAll(".fouySessionView").forEach(view => view.style.display = "none");
     document.getElementById(viewId).style.display = "flex";}
@@ -59,7 +64,7 @@ function showCurrentPanel() {
             showPanelView("fouyCreateSession");
             break;
         case SESSION_STATE.DIRECT_READY:
-            document.getElementById("fouySessionPanelTitle").textContent = "Connexion active";
+            document.getElementById("fouySessionPanelTitle").textContent = "✅ Connexion active";
             document.getElementById("fouyConnectedPeerName").value = peerName;
             document.getElementById("fouyConnectedPeer").textContent = remotePeerName;
             showPanelView("fouyConnectedSession");
@@ -136,8 +141,6 @@ function createSessionUi() {
     </div>
 </div>
 <div id="fouyConnectedSession" class="fouySessionView">
-    <div>✅ Connexion active</div>
-    <div>Nom de l'appareil</div>
     <input id="fouyConnectedPeerName"/>
     <div>Connecté à</div>
     <div id="fouyConnectedPeer"> Pair connecté</div>
@@ -151,6 +154,7 @@ function createSessionUi() {
     document.getElementById("fouyApiKey").value = localStorage.getItem("fouy.session.apiKey") || "";
     document.getElementById("fouyCreateSessionButton").addEventListener("click", createSession);
     document.getElementById("fouySessionClose").addEventListener("click", hideSessionPanel);
+    document.getElementById("fouyConnectedPeerName").addEventListener("change", event => updatePeerName(event.target.value));
     sessionOverlay.addEventListener("click", hideSessionPanel);
     sessionPanel.addEventListener("click", event => event.stopPropagation());}
 
@@ -342,6 +346,11 @@ function connectWebSocket() {
             if (message.type === "ice-candidate") {
                 await peerConnection.addIceCandidate(new RTCIceCandidate(message.data.candidate));
                 log("ICE reçu");
+                return;}
+            if (message.type === "peer-name-updated") {
+                remotePeerName = message.data.peerName;
+                if (sessionState === SESSION_STATE.DIRECT_READY) {
+                    document.getElementById("fouyConnectedPeer").textContent = remotePeerName;}
                 return;}
             if (message.type === "heartbeat-ok") {return;}
             if (message.id && pendingRequests.has(message.id)) {
