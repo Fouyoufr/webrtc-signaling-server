@@ -1,6 +1,7 @@
 /* Etats serveur et session */
 const SERVER_STATE = {DOWN: "Déconnecté", AVAILABLE: "Disponible", AUTHENTICATED: "Authentifié"};
 const SESSION_STATE = {NONE: "Aucune session", HOST_WAITING: "Session disponible", GUEST_JOINED: "Invité en attente", SESSION_FOUND: "Session reconnue", DIRECT_READY: "Session directe disponible"};
+const PANEL_VIEW = {INFORMATIONS: "fouySessionInformations", INVITATION: "fouyCreateSession", CONNECTED: "fouyConnectedSession"};
 const urlParams = new URLSearchParams(window.location.search);
 const joinSessionId = urlParams.get("FouySessionJoin");
 const SessionMode = {HOST: "host", GUEST: "guest"};
@@ -91,7 +92,9 @@ function createSessionUi() {
 #fouySessionJoinUrl {flex: 1; max-width: 400px; padding: 6px; text-align: center; font-family: monospace;}
 #fouySessionShareRow {display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 15px;}
 #fouySessionJoinUrl {flex: 1; max-width: 400px; padding: 6px; text-align: center; font-family: monospace;}
-#fouyCopyButton {cursor: pointer; width: 36px; height: 36px;}`;
+#fouyCopyButton {cursor: pointer; width: 36px; height: 36px;}
+#fouySessionPanel input {border: 1px solid #999 !important; box-sizing: border-box; background: white;}
+#fouySessionClose {position: absolute; top: 10px; right: 10px; border: none; background: transparent; cursor: pointer; font-size: 18px;}`;
     document.head.appendChild(style);
     indicator = document.createElement("button");
     indicator.id = "sessionIndicator";
@@ -103,6 +106,7 @@ function createSessionUi() {
     sessionPanel = document.createElement("div");
     sessionPanel.id = "fouySessionPanel";
     sessionPanel.innerHTML = `
+<button id="fouySessionClose">✕</button>
 <h2 id="fouySessionPanelTitle">Session inter-navigateurs</h2>
 <div id="fouySessionInformations" class="fouySessionView">
     <div>Nom de l'appareil</div>
@@ -125,7 +129,10 @@ function createSessionUi() {
     showPanelView("fouySessionInformations");
     document.getElementById("fouyPeerName").value = peerName;
     document.getElementById("fouyApiKey").value = localStorage.getItem("fouy.session.apiKey") || "";
-    document.getElementById("fouyCreateSessionButton").addEventListener("click", createSession);}
+    document.getElementById("fouyCreateSessionButton").addEventListener("click", createSession);
+    document.getElementById("fouySessionClose").addEventListener("click", hideSessionPanel);
+    sessionOverlay.addEventListener("click", hideSessionPanel);
+    sessionPanel.addEventListener("click", event => event.stopPropagation());}
 
 async function showSessionPanel(joinUrl) {
     sessionOverlay.style.display = "block";
@@ -320,20 +327,6 @@ function connectWebSocket() {
                 request.resolve(message);
                 return;}
             log(`Message : ${event.data}`);});}
-
-/* Boutons de test 
-document.getElementById("createSession").addEventListener("click", async () => {
-    try {
-        const response = await webSocketSend({target: "server", type: "create-session", data: {}});
-        if (response.type === "session-created") {
-            sessionState = SESSION_STATE.HOST_WAITING;
-            isHost = true;
-            updateIndicator();
-            const joinUrl = `${window.location.origin}` + `?FouySessionJoin=` + response.data.sessionId;
-            await showSessionPanel(joinUrl);
-            log(`Session créée : ${response.data.sessionId}`);}}
-    catch (error) {log(`Erreur : ${error.message}`);}});
-*/
 
 /* Initialisation */
 createSessionUi();
