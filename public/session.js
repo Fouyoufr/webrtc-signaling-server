@@ -23,6 +23,7 @@ let remotePeerName = null;
 let sessionQrCode;
 let sessionCopyButton;
 let sessionJoinUrl;
+let toastContainer ;
 
 /* Peer Id persistant */
 let peerId = localStorage.getItem("fouy.session.peerId");
@@ -87,7 +88,7 @@ async function createSession() {
             updateIndicator();
             const joinUrl = `${window.location.origin}` + `?FouySessionJoin=` + response.data.sessionId;
             await showSessionPanel(joinUrl);}}
-    catch(error) {log(`Erreur : ${error.message}`);}}
+    catch(error) {fouySessionToast("error",error.message);}}
 
 function fouySessionToast(type, message) {
     const toast = document.createElement("div");
@@ -190,7 +191,7 @@ async function joinSession(sessionId) {
         if (response.type === "session-joined") {
             sessionState = SESSION_STATE.SESSION_FOUND;
             updateIndicator();}}
-    catch (error) {log(`Erreur : ${error.message}`);}}
+    catch (error) {fouySessionToast("error",error.message);}}
 
 async function createPeerConnection() {
     if (peerConnection) {return;}
@@ -208,7 +209,9 @@ async function createPeerConnection() {
     peerConnection.onconnectionstatechange = () => {
         log(`Connection state : ${peerConnection.connectionState}`);
         if (peerConnection.connectionState === "connected") {sessionState = SESSION_STATE.DIRECT_READY}
-        else {sessionState = SESSION_STATE.NONE}
+        else {
+            sessionState = SESSION_STATE.NONE
+            fouySessionToast("warning","Connexion directe interrompue")}
         updateIndicator();};
     log("RTCPeerConnection créée");
     if (isHost) {await createOffer();}}
@@ -217,7 +220,7 @@ function configureDataChannel() {
     if (!dataChannel) {return;}
     dataChannel.onopen = () => {
         log("DataChannel ouvert");
-        fouySessionToast("info","Session disponible")};
+        fouySessionToast("info","Connexion établie")};
     dataChannel.onmessage = (event) => {log(`Message reçu : ${event.data}`);};
     dataChannel.onclose = () => {log("DataChannel fermé");};}    
 
@@ -233,7 +236,7 @@ function startHeartbeat() {
         clearInterval(heartbeatTimer);}
     heartbeatTimer = setInterval(async () => {
         try {await webSocketSend({target: "server", type: "heartbeat", data: {}});}
-        catch (error) {log(`Heartbeat perdu : ${error.message}`);}}, heartbeatInterval * 1000);}
+        catch (error) {fouySessionToast("warning","Serveur de mise en relation indisponible");}}, heartbeatInterval * 1000);}
 
 /* Puce */
 function updateIndicator() {
@@ -297,7 +300,7 @@ async function webSocketSend(message) {
     if (sessionMode === SessionMode.HOST && !authenticated) { await authenticate();}
     return await sendRawMessage( message);}
 
-/* Fermeture du QRCode */
+/* Fermeture du panneau d'informations */
 function hideSessionPanel() {
     showPanelView("fouySessionInformations");
     sessionOverlay.style.display = "none";
@@ -322,7 +325,7 @@ function connectWebSocket() {
             clearInterval(heartbeatTimer);
             heartbeatTimer = null;}
         log("WebSocket déconnecté");
-        fouySessionToast("info","WebSocket déconnecté")});
+        fouySessionToast("error","Serveur de mise en relation perdu")});
         socket.addEventListener(
         "message", async (event) => {
             const message = JSON.parse(event.data);
@@ -366,10 +369,19 @@ function connectWebSocket() {
                 return;}
             if (message.type === "peer-name-updated") {
                 remotePeerName = message.data.peerName;
+                fouySessionToast("info",`Nom du pair mis à jour : "${remotePeerName}"`);
                 if (sessionState === SESSION_STATE.DIRECT_READY) {
                     document.getElementById("fouyConnectedPeer").textContent = remotePeerName;}
                 return;}
             if (message.type === "heartbeat-ok") {return;}
+            if (message.type === "error" && message.id && pendingRequests.has(message.id)) {
+                const request = pendingRequests.get(message.id);
+                pendingRequests.delete(message.id);
+                request.reject(new Error(message.error));
+                return;}
+            if (message.type === "error") {
+                fouySessionToast("error", message.error);
+                return;}
             if (message.id && pendingRequests.has(message.id)) {
                 const request = pendingRequests.get(message.id);
                 pendingRequests.delete(message.id);
