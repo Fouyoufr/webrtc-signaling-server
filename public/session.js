@@ -209,9 +209,10 @@ async function createPeerConnection() {
     peerConnection.onconnectionstatechange = () => {
         log(`Connection state : ${peerConnection.connectionState}`);
         if (peerConnection.connectionState === "connected") {sessionState = SESSION_STATE.DIRECT_READY}
-        else {
-            sessionState = SESSION_STATE.NONE
-            fouySessionToast("warning","Connexion directe interrompue")}
+        else if (peerConnection.connectionState === "disconnected") {fouySessionToast("warning", "Connexion directe interrompue");}
+        else if (peerConnection.connectionState === "failed") {
+            fouySessionToast("error", "Connexion directe perdue");
+            sessionState = SESSION_STATE.NONE;}
         updateIndicator();};
     log("RTCPeerConnection créée");
     if (isHost) {await createOffer();}}
