@@ -70,6 +70,7 @@ wss.on("connection", (ws) => {
                         role = "guest";
                         session.guest = ws;
                         remotePeerName = session.hostPeerName;}
+                    console.log("Session retrouvée :", sessionId, role);
                     ws.send(JSON.stringify({type: "session-resumed", data: {sessionId, role, remotePeerName}}));}} 
             else {ws.send(JSON.stringify({id: request.id, type: "error", error: "Invalid API key"}));}
             return;}
