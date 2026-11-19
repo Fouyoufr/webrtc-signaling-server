@@ -23,7 +23,9 @@ let remotePeerName = null;
 let sessionQrCode;
 let sessionCopyButton;
 let sessionJoinUrl;
-let toastContainer ;
+let toastContainer;
+let reconnectTimer = null;
+let firstConnection = true;
 
 /* Peer Id persistant */
 let peerId = localStorage.getItem("fouy.session.peerId");
@@ -316,6 +318,8 @@ function connectWebSocket() {
         serverState = SERVER_STATE.AVAILABLE;
         updateIndicator();
         log(`WebSocket connecté (${peerId})`);
+        if (!firstConnection) {fouySessionToast("info", "Serveur de mise en relation reconnecté");}
+        firstConnection = false;
         if (sessionMode === SessionMode.GUEST) {await joinSession(joinSessionId);}});
 
     socket.addEventListener("close",() => {
@@ -327,68 +331,79 @@ function connectWebSocket() {
             heartbeatTimer = null;}
         log("WebSocket déconnecté");
         fouySessionToast("error","Serveur de mise en relation perdu")});
-        socket.addEventListener(
-        "message", async (event) => {
-            const message = JSON.parse(event.data);
-            if (message.type === "connected") {
-                heartbeatInterval = message.data.heartbeatInterval;
-                startHeartbeat();
-                return;}
-            if (message.type === "guest-joined") {
-                remotePeerName = message.data.peerName;
-                hideSessionPanel();
-                sessionState = SESSION_STATE.GUEST_JOINED;
-                log(`Invité connecté : ${message.data.peerId}`);
-                fouySessionToast("info",`Invité connecté : ${message.data.peerName ? message.data.peerName : message.data.peerId}`)
-                updateIndicator();
-                createPeerConnection();
-                return;}
-            if (message.type === "session-joined") {
-                authenticated = true;
-                remotePeerName = message.data.peerName;
-                serverState = SERVER_STATE.AUTHENTICATED;
-                sessionState = SESSION_STATE.SESSION_FOUND;
-                log(`Session reconnue : ${message.data.sessionId}`);
-                updateIndicator();
-                createPeerConnection();
-                return;}
-            if (message.type === "offer") {
-                log("Offer reçue");
-                await peerConnection.setRemoteDescription(new RTCSessionDescription(message.data.offer));
-                const answer = await peerConnection.createAnswer();
-                await peerConnection.setLocalDescription(answer);
-                await webSocketSend({target: "server", type: "answer", data: {answer}});
-                log("Answer envoyée");
-                return;}
-            if (message.type === "answer") {
-                log("Answer reçue");
-                await peerConnection.setRemoteDescription(new RTCSessionDescription(message.data.answer));
-                return;}
-            if (message.type === "ice-candidate") {
-                await peerConnection.addIceCandidate(new RTCIceCandidate(message.data.candidate));
-                log("ICE reçu");
-                return;}
-            if (message.type === "peer-name-updated") {
-                remotePeerName = message.data.peerName;
-                fouySessionToast("info",`Nom du pair mis à jour : "${remotePeerName}"`);
-                if (sessionState === SESSION_STATE.DIRECT_READY) {
-                    document.getElementById("fouyConnectedPeer").textContent = remotePeerName;}
-                return;}
-            if (message.type === "heartbeat-ok") {return;}
-            if (message.type === "error" && message.id && pendingRequests.has(message.id)) {
-                const request = pendingRequests.get(message.id);
-                pendingRequests.delete(message.id);
-                request.reject(new Error(message.error));
-                return;}
-            if (message.type === "error") {
-                fouySessionToast("error", message.error);
-                return;}
-            if (message.id && pendingRequests.has(message.id)) {
-                const request = pendingRequests.get(message.id);
-                pendingRequests.delete(message.id);
-                request.resolve(message);
-                return;}
-            log(`Message : ${event.data}`);});}
+    socket.addEventListener("close", () => {
+        authenticated = false;
+        serverState = SERVER_STATE.DOWN;
+        updateIndicator();
+        if (heartbeatTimer) {
+            clearInterval(heartbeatTimer);
+            heartbeatTimer = null;}
+        fouySessionToast("warning", "Tentative de reconnexion au serveur de mise en relation");
+        if (!reconnectTimer) {
+            reconnectTimer = setTimeout(() => {
+                reconnectTimer = null;
+                connectWebSocket();}, 5000);}});
+    socket.addEventListener("message", async (event) => {
+        const message = JSON.parse(event.data);
+        if (message.type === "connected") {
+            heartbeatInterval = message.data.heartbeatInterval;
+            startHeartbeat();
+            return;}
+        if (message.type === "guest-joined") {
+            remotePeerName = message.data.peerName;
+            hideSessionPanel();
+            sessionState = SESSION_STATE.GUEST_JOINED;
+            log(`Invité connecté : ${message.data.peerId}`);
+            fouySessionToast("info",`Invité connecté : ${message.data.peerName ? message.data.peerName : message.data.peerId}`)
+            updateIndicator();
+            createPeerConnection();
+            return;}
+        if (message.type === "session-joined") {
+            authenticated = true;
+            remotePeerName = message.data.peerName;
+            serverState = SERVER_STATE.AUTHENTICATED;
+            sessionState = SESSION_STATE.SESSION_FOUND;
+            log(`Session reconnue : ${message.data.sessionId}`);
+            updateIndicator();
+            createPeerConnection();
+            return;}
+        if (message.type === "offer") {
+            log("Offer reçue");
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(message.data.offer));
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+            await webSocketSend({target: "server", type: "answer", data: {answer}});
+            log("Answer envoyée");
+            return;}
+        if (message.type === "answer") {
+            log("Answer reçue");
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(message.data.answer));
+            return;}
+        if (message.type === "ice-candidate") {
+            await peerConnection.addIceCandidate(new RTCIceCandidate(message.data.candidate));
+            log("ICE reçu");
+            return;}
+        if (message.type === "peer-name-updated") {
+            remotePeerName = message.data.peerName;
+            fouySessionToast("info",`Nom du pair mis à jour : "${remotePeerName}"`);
+            if (sessionState === SESSION_STATE.DIRECT_READY) {
+                document.getElementById("fouyConnectedPeer").textContent = remotePeerName;}
+            return;}
+        if (message.type === "heartbeat-ok") {return;}
+        if (message.type === "error" && message.id && pendingRequests.has(message.id)) {
+            const request = pendingRequests.get(message.id);
+            pendingRequests.delete(message.id);
+            request.reject(new Error(message.error));
+            return;}
+        if (message.type === "error") {
+            fouySessionToast("error", message.error);
+            return;}
+        if (message.id && pendingRequests.has(message.id)) {
+            const request = pendingRequests.get(message.id);
+            pendingRequests.delete(message.id);
+            request.resolve(message);
+            return;}
+        log(`Message : ${event.data}`);});}
 
 /* Initialisation */
 createSessionUi();
