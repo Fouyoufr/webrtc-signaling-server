@@ -33,7 +33,6 @@ if (!peerId) {
 let requestId = 0;
 const pendingRequests = new Map();
 /* Références DOM */
-const logs = document.getElementById("logs");
 let indicator;
 let sessionOverlay;
 let sessionPanel;
@@ -121,7 +120,7 @@ function createSessionUi() {
 #fouyCopyButton {cursor: pointer; width: 36px; height: 36px;}
 #fouySessionPanel input {border: 1px solid #999 !important; box-sizing: border-box; background: white;}
 #fouySessionClose {position: absolute; top: 10px; right: 10px; border: none; background: transparent; cursor: pointer; font-size: 18px;}
-#fouySessionToastContainer { position: fixed; top: 50px; right: 10px; z-index: 10000; display: flex; flex-direction: column; gap: 8px;}
+#fouySessionToastContainer { position: fixed; top: 10px; right: 10px; z-index: 10000; display: flex; flex-direction: column; gap: 8px;}
 .fouySessionToast { padding: 10px; border-radius: 6px; color: white; cursor: pointer; min-width: 250px;}
 .fouySessionToast.info {background: #3b82f6;}
 .fouySessionToast.warning {background: #f59e0b;}
@@ -216,15 +215,15 @@ async function createPeerConnection() {
 
 function configureDataChannel() {
     if (!dataChannel) {return;}
-    dataChannel.onopen = () => {log("DataChannel ouvert");};
+    dataChannel.onopen = () => {
+        log("DataChannel ouvert");
+        fouySessionToast("info","Session disponible")};
     dataChannel.onmessage = (event) => {log(`Message reçu : ${event.data}`);};
     dataChannel.onclose = () => {log("DataChannel fermé");};}    
 
 /* Journalisation */
 function log(message) {
-    const line = document.createElement("div");
-    line.textContent = message;
-    logs.appendChild(line);}
+    console.debug("[FouySession]",message)}
 /* IDs */
 function nextRequestId() {
     requestId++;
@@ -322,7 +321,8 @@ function connectWebSocket() {
         if (heartbeatTimer) {
             clearInterval(heartbeatTimer);
             heartbeatTimer = null;}
-        log("WebSocket déconnecté");});
+        log("WebSocket déconnecté");
+        fouySessionToast("info","WebSocket déconnecté")});
         socket.addEventListener(
         "message", async (event) => {
             const message = JSON.parse(event.data);
@@ -335,6 +335,7 @@ function connectWebSocket() {
                 hideSessionPanel();
                 sessionState = SESSION_STATE.GUEST_JOINED;
                 log(`Invité connecté : ${message.data.peerId}`);
+                fouySessionToast("info",`Invité connecté : ${message.data.peerName ? message.data.peerName : message.data.peerId}`)
                 updateIndicator();
                 createPeerConnection();
                 return;}
