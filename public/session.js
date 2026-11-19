@@ -10,7 +10,7 @@ const sessionScript = [...document.scripts].find(script => script.src.includes("
 const sessionBaseUrl = new URL(".", sessionScript.src).href;
 const pendingRequests = new Map();
 /* Déclaration variables */
-let serverState = SERVER_STATE.DOWN, sessionState = SESSION_STATE.NONE, authenticated = false, heartbeatInterval = null, heartbeatTimer = null, peerConnection = null, isHost = false, dataChannel = null, remotePeerName = null, sessionQrCode, sessionCopyButton, sessionJoinUrl, toastContainer, reconnectTimer = null, firstConnection = true, requestId = 0, indicator, sessionOverlay, sessionPanel, peerName = localStorage.getItem("fouy.session.peerName"), peerId = localStorage.getItem("fouy.session.peerId"), sessionId = null, sessionRole = null, remotePeerId = null;
+let serverState = SERVER_STATE.DOWN, sessionState = SESSION_STATE.NONE, authenticated = false, heartbeatInterval = null, heartbeatTimer = null, peerConnection = null, isHost = false, dataChannel = null, remotePeerName = null, sessionQrCode, toastContainer, reconnectTimer = null, firstConnection = true, requestId = 0, indicator, sessionOverlay, sessionPanel, peerName = localStorage.getItem("fouy.session.peerName"), peerId = localStorage.getItem("fouy.session.peerId"), sessionId = null, sessionRole = null, remotePeerId = null;
 if (!peerName) {peerName = `Nouveau ${navigator.platform}`;}
 if (!peerId) {
     peerId = crypto.randomUUID();
@@ -95,10 +95,6 @@ function createSessionUi() {
 .fouySessionView {display: none; flex-direction: column; align-items: center; gap: 10px;}
 #fouySessionQrCode {display: flex; justify-content: center; align-items: center;}
 #fouySessionPanel h2 {margin-top: 0;}
-#fouySessionJoinUrl {flex: 1; max-width: 400px; padding: 6px; text-align: center; font-family: monospace;}
-#fouySessionShareRow {display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 15px;}
-#fouySessionJoinUrl {flex: 1; max-width: 400px; padding: 6px; text-align: center; font-family: monospace;}
-#fouyCopyButton {cursor: pointer; width: 36px; height: 36px;}
 #fouySessionPanel input {border: 1px solid #999 !important; box-sizing: border-box; background: white;}
 #fouySessionClose {position: absolute; top: 10px; right: 10px; border: none; background: transparent; cursor: pointer; font-size: 18px;}
 #fouySessionToastContainer { position: fixed; top: 10px; right: 10px; z-index: 10000; display: flex; flex-direction: column; gap: 8px;}
@@ -128,10 +124,6 @@ function createSessionUi() {
 </div>
 <div id="fouyCreateSession" class="fouySessionView">
     <div id="fouySessionQrCode"></div>
-    <div id="fouySessionShareRow">
-        <input id="fouySessionJoinUrl" readonly/>
-        <button id="fouyCopyButton">📋</button>
-    </div>
 </div>
 <div id="fouyConnectedSession" class="fouySessionView">
     <input id="fouyConnectedPeerName"/>
@@ -142,9 +134,7 @@ function createSessionUi() {
     toastContainer.id = "fouySessionToastContainer";
     document.body.appendChild(toastContainer);
     document.body.appendChild(sessionPanel);
-    sessionJoinUrl = document.getElementById("fouySessionJoinUrl");
     sessionQrCode = document.getElementById("fouySessionQrCode");
-    sessionCopyButton = document.getElementById("fouyCopyButton");
     showPanelView("fouySessionInformations");
     document.getElementById("fouyPeerName").value = peerName;
     document.getElementById("fouyApiKey").value = localStorage.getItem("fouy.session.apiKey") || "";
@@ -159,11 +149,12 @@ async function showSessionPanel(joinUrl) {
     sessionPanel.style.display = "flex";
     showPanelView("fouyCreateSession");
     document.getElementById("fouySessionPanelTitle").textContent = "Inviter un appareil";
-    sessionJoinUrl.value = joinUrl;
     if (typeof QRCode === "undefined") {await loadScript("qrcode.min.js");}
     sessionQrCode.innerHTML = "";
     new QRCode(sessionQrCode, {text: joinUrl,width: 180, height: 180});
-    sessionCopyButton.onclick = async () => { await navigator.clipboard.writeText(joinUrl);};}
+    sessionQrCode.onclick = async () => {
+        await navigator.clipboard.writeText(joinUrl);
+        fouySessionToast("info", "URL d'invitation copiée");};}
 
 async function joinSession(sessionId) {
     try {

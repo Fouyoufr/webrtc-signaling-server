@@ -187,7 +187,7 @@ Notifications : INFO, WARNING, ERROR
 
 ## 11. Évolutions planifiées
 
-### V6.2
+### V6.2 ✅
 Réassociation automatique de session
 
 Objectif :
