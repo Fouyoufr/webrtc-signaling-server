@@ -315,7 +315,7 @@ function connectWebSocket() {
         if (heartbeatTimer) {
             clearInterval(heartbeatTimer);
             heartbeatTimer = null;}
-        fouySessionToast("warning", "Tentative de reconnexion au serveur de mise en relation");
+        fouySessionToast("info", "Tentative de reconnexion au serveur de mise en relation");
         if (!reconnectTimer) {
             reconnectTimer = setTimeout(() => {
                 reconnectTimer = null;

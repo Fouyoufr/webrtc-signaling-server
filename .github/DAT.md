@@ -1,6 +1,6 @@
 # DAT – Fouy Session / WebRTC P2P Framework
 
-Version : 1.0 État : Prototype fonctionnel validé
+Version : 6.1 État : Framework fonctionnel validé
 
 ##1. Objet
 
@@ -69,6 +69,8 @@ Host : guest-joined
 Offer -> Answer -> ICE -> connecting -> connected
 ### DataChannel
 DataChannel ouvert -> Communication directe
+### Reconnexion WebSocket
+WebSocket fermé -> Tentative automatique -> Reconnexion -> Reprise heartbeat
 
 ## 5. États de la puce
 ### Couronne externe
@@ -91,6 +93,7 @@ Structure commune :
 {
 "id": "123",
 "peerId": "xxxx",
+"peerName":"Mon PC",
 "target": "server",
 "type": "xxx",
 "data": {}
@@ -124,6 +127,11 @@ Structure commune :
 "error":"..."}
 ```
 
+### Synchronisation des pairs
+
+- update-peer-name
+- peer-name-updated
+
 ## 7. Variables d'environnement
 - `API_KEY=xxxx` : Clé de protection du serveur.
 - `HEARTBEAT_INTERVAL=30` : Intervalle exprimé en secondes.
@@ -150,9 +158,11 @@ Stockage serveur `sessions`contient :
 {
 host,
 hostPeerId,
+hostPeerName,
  
 guest,
 guestPeerId,
+guestPeerName,
  
 createdAt}
 ````
@@ -167,44 +177,51 @@ websocket
 )
 ````
 
-## 10. Évolutions planifiées
-### V5.1 : Nettoyage UI
-logs → console
-notifications visuelles
+### Notifications
+fouySessionToast(type,message) ["info","warning","error"]
 
-### V5.2 : Animation activité DataChannel
-flash vert sur émission/réception.
+## 10. UI intégrée
+Puce : Rouge (hors ligne), Orange (serveur disponible), Verte (authentifié)
+Panneau : INFORMATIONS, INVITATION, CONNECTED
+Notifications : INFO, WARNING, ERROR
 
-### V5.3 : Configuration dynamique STUN.
+## 11. Évolutions planifiées
 
-### V5.4 : Reconnexion automatique WebSocket.
+### V6.2
+Réassociation automatique de session
 
-### V5.5 : Réassociation automatique d'une session après reconnexion Android.
+Objectif :
+retrouver une session après reconnexion WebSocket.
 
-### V6
+### V6.3
+Réparation automatique WebRTC
 
-Messages applicatifs métier au-dessus de : directSend(...)
- 
-État actuel du projet
+Objectif :
+renégocier Offer / Answer après perte du DataChannel.
 
-✅ Authentification
+### V6.4
+Robustesse mobile
 
-✅ Sessions
+Tests :
+- Android écran éteint
+- Changement Wifi / 4G
+- Retour arrière-plan / premier plan
 
-✅ Heartbeat
+### V7
+API applicative
 
-✅ STUN
+directSend(...)
+directReceive(...)
+messages métier
 
-✅ Offer / Answer
+## Historique des versions
 
-✅ ICE
-
-✅ DataChannel
-
-✅ Communication P2P
-
-✅ Validation LAN ↔ LAN
-
-✅ Validation WiFi ↔ 4G
-
-✅ Persistance malgré perte du WebSocket
+✅ V5.0 : WebRTC fonctionnel
+✅ V5.1 : Jonction URL
+✅ V5.2 : QRCode
+✅ V5.3 : Guest sans API Key
+✅ V5.4 : UI autonome
+✅ V5.5 : Machine à états du panneau
+✅ V5.6 : Synchronisation peerName
+✅ V5.7 : Notifications Toast
+✅ V6.1 : Reconnexion WebSocket
