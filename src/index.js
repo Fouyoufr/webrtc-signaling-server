@@ -56,7 +56,7 @@ wss.on("connection", (ws) => {
                 console.log( `Authentifié : ${ws.peerId}`);
                 console.log( `Clients connectés : ${clients.size}`);
                 ws.send(JSON.stringify({id: request.id, type: "authenticated"}));
-                /*reconnexion automatique */
+                /*reconnexion automatique
                 const result = findSessionByPeerId(ws.peerId);
                 if (result) {
                     const { sessionId, session } = result;
@@ -71,7 +71,9 @@ wss.on("connection", (ws) => {
                         session.guest = ws;
                         remotePeerName = session.hostPeerName;}
                     console.log("Session retrouvée :", sessionId, role);
-                    ws.send(JSON.stringify({type: "session-resumed", data: {sessionId, role, remotePeerName}}));}} 
+                    ws.send(JSON.stringify({type: "session-resumed", data: {sessionId, role, remotePeerName}}));} */
+
+                }
             else {ws.send(JSON.stringify({id: request.id, type: "error", error: "Invalid API key"}));}
             return;}
 
@@ -80,6 +82,9 @@ wss.on("connection", (ws) => {
             const session = sessions.get(request.data.sessionId);
             if (!session) {
                 ws.send(JSON.stringify({id: request.id, type: "error", error: "Session not found"}));
+                return;}
+            if (session.guestPeerId && session.guestPeerId !== request.peerId) {
+                ws.send(JSON.stringify({id: request.id, type: "error", error: "Invité non autorisé"}));
                 return;}
             session.guest = ws;
             session.guestPeerId = request.peerId;
@@ -94,6 +99,18 @@ wss.on("connection", (ws) => {
         /* Tout le reste nécessite une authentification */
         if (!ws.isAuthenticated) {
             ws.send(JSON.stringify({ id: request.id, type: "error", error: "Not authenticated"}));
+            return;}            
+
+        /* Restauration de session */
+        if (request.type === "restore-session") {
+            let session = sessions.get(request.data.sessionId);
+            if (session) {
+                session.host = ws; session.hostPeerId = ws.peerId; session.hostPeerName = ws.peerName;
+                ws.send(JSON.stringify({id: request.id, type: "session-restored"}));
+                return;}
+            sessions.set(request.data.sessionId, {host: ws, hostPeerId: ws.peerId, hostPeerName: ws.peerName, guest: null, guestPeerId: request.data.guestPeerId, guestPeerName: request.data.guestPeerName, createdAt: Date.now()});
+            console.log(`Session restaurée : ${request.data.sessionId}`);
+            ws.send(JSON.stringify({id: request.id, type: "session-restored"}));
             return;}
 
         /* Ping et HeratBeat*/

@@ -10,7 +10,7 @@ const sessionScript = [...document.scripts].find(script => script.src.includes("
 const sessionBaseUrl = new URL(".", sessionScript.src).href;
 const pendingRequests = new Map();
 /* Déclaration variables */
-let serverState = SERVER_STATE.DOWN, sessionState = SESSION_STATE.NONE, authenticated = false, heartbeatInterval = null, heartbeatTimer = null, peerConnection = null, isHost = false, dataChannel = null, remotePeerName = null, sessionQrCode, sessionCopyButton, sessionJoinUrl, toastContainer, reconnectTimer = null, firstConnection = true, requestId = 0, indicator, sessionOverlay, sessionPanel, peerName = localStorage.getItem("fouy.session.peerName"), peerId = localStorage.getItem("fouy.session.peerId");
+let serverState = SERVER_STATE.DOWN, sessionState = SESSION_STATE.NONE, authenticated = false, heartbeatInterval = null, heartbeatTimer = null, peerConnection = null, isHost = false, dataChannel = null, remotePeerName = null, sessionQrCode, sessionCopyButton, sessionJoinUrl, toastContainer, reconnectTimer = null, firstConnection = true, requestId = 0, indicator, sessionOverlay, sessionPanel, peerName = localStorage.getItem("fouy.session.peerName"), peerId = localStorage.getItem("fouy.session.peerId"), sessionId = null, sessionRole = null, remotePeerId = null;
 if (!peerName) {peerName = `Nouveau ${navigator.platform}`;}
 if (!peerId) {
     peerId = crypto.randomUUID();
@@ -62,6 +62,8 @@ async function createSession() {
         isHost = true;
         const response = await webSocketSend({target: "server", type: "create-session", data: {}});
         if (response.type === "session-created") {
+            sessionId = response.data.sessionId;
+            sessionRole = "host";
             sessionState = SESSION_STATE.HOST_WAITING;
             updateIndicator();
             const joinUrl = `${window.location.origin}` + `?FouySessionJoin=` + response.data.sessionId;
@@ -167,9 +169,19 @@ async function joinSession(sessionId) {
     try {
         const response = await webSocketSend({target: "server", type: "join-session", data: {sessionId}});
         if (response.type === "session-joined") {
+            sessionId = response.data.sessionId;
+            sessionRole = "guest";
             sessionState = SESSION_STATE.SESSION_FOUND;
             updateIndicator();}}
-    catch (error) {fouySessionToast("error",error.message);}}
+ /* catch (error) {fouySessionToast("error",error.message);}*/
+    catch(error) {
+        fouySessionToast("info", "Session indisponible, nouvelle tentative...");
+        setTimeout(() => joinSession(sessionId), 7000);}}
+
+async function restoreSession() {
+    if (!sessionId || !sessionRole) {return;}
+    await webSocketSend({target: "server", type: "restore-session", data: {sessionId, guestPeerId: remotePeerId, guestPeerName: remotePeerName}});
+    log(`Session restaurée : ${sessionId}`);}
 
 async function createPeerConnection() {
     if (peerConnection) {return;}
@@ -294,6 +306,7 @@ function connectWebSocket() {
         serverState = SERVER_STATE.AVAILABLE;
         updateIndicator();
         log(`WebSocket connecté (${peerId})`);
+        if (sessionId && isHost) {await restoreSession();}
         if (!firstConnection) {fouySessionToast("info", "Serveur de mise en relation reconnecté");}
         firstConnection = false;
         if (sessionMode === SessionMode.GUEST) {await joinSession(joinSessionId);}});
@@ -327,6 +340,7 @@ function connectWebSocket() {
             startHeartbeat();
             return;}
         if (message.type === "guest-joined") {
+            remotePeerId = message.data.peerId;
             remotePeerName = message.data.peerName;
             hideSessionPanel();
             sessionState = SESSION_STATE.GUEST_JOINED;
