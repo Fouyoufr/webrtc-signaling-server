@@ -8,37 +8,13 @@ const SessionMode = {HOST: "host", GUEST: "guest"};
 const sessionMode = joinSessionId ? SessionMode.GUEST : SessionMode.HOST;
 const sessionScript = [...document.scripts].find(script => script.src.includes("session.js"));
 const sessionBaseUrl = new URL(".", sessionScript.src).href;
-/* Etat courant */
-let peerName = localStorage.getItem("fouy.session.peerName");
+const pendingRequests = new Map();
+/* Déclaration variables */
+let serverState = SERVER_STATE.DOWN, sessionState = SESSION_STATE.NONE, authenticated = false, heartbeatInterval = null, heartbeatTimer = null, peerConnection = null, isHost = false, dataChannel = null, remotePeerName = null, sessionQrCode, sessionCopyButton, sessionJoinUrl, toastContainer, reconnectTimer = null, firstConnection = true, requestId = 0, indicator, sessionOverlay, sessionPanel, peerName = localStorage.getItem("fouy.session.peerName"), peerId = localStorage.getItem("fouy.session.peerId");
 if (!peerName) {peerName = `Nouveau ${navigator.platform}`;}
-let serverState = SERVER_STATE.DOWN;
-let sessionState = SESSION_STATE.NONE;
-let authenticated = false;
-let heartbeatInterval = null;
-let heartbeatTimer = null;
-let peerConnection = null;
-let isHost = false;
-let dataChannel = null;
-let remotePeerName = null;
-let sessionQrCode;
-let sessionCopyButton;
-let sessionJoinUrl;
-let toastContainer;
-let reconnectTimer = null;
-let firstConnection = true;
-
-/* Peer Id persistant */
-let peerId = localStorage.getItem("fouy.session.peerId");
 if (!peerId) {
     peerId = crypto.randomUUID();
     localStorage.setItem("fouy.session.peerId", peerId);}
-/* Gestion des requêtes */
-let requestId = 0;
-const pendingRequests = new Map();
-/* Références DOM */
-let indicator;
-let sessionOverlay;
-let sessionPanel;
 
 async function loadScript(scriptName) {
     return new Promise((resolve, reject) => {
@@ -323,14 +299,15 @@ function connectWebSocket() {
         if (sessionMode === SessionMode.GUEST) {await joinSession(joinSessionId);}});
 
     socket.addEventListener("close",() => {
-        authenticated = false;
+        if (authenticated) {
+            authenticated = false;
+            fouySessionToast("error","Serveur de mise en relation perdu")}
         serverState = SERVER_STATE.DOWN;
         updateIndicator();
         if (heartbeatTimer) {
             clearInterval(heartbeatTimer);
             heartbeatTimer = null;}
-        log("WebSocket déconnecté");
-        fouySessionToast("error","Serveur de mise en relation perdu")});
+        log("WebSocket déconnecté");});
     socket.addEventListener("close", () => {
         authenticated = false;
         serverState = SERVER_STATE.DOWN;
